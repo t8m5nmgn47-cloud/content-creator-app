@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Settings — Content Creator{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-white">Settings</h1>
+    <p class="text-gray-400 text-sm mt-1">Configure your content creation pipeline</p>
+  </div>
+
+  {% if request.query_params.get('saved') %}
+  <div class="mb-6 bg-green-900/50 border border-green-700 rounded-xl p-4 text-green-300 text-sm">
+    ✅ Settings saved!
+  </div>
+  {% endif %}
+
+  <form action="/settings/save" method="POST" class="space-y-6">
+
+    <!-- Posting Settings -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <h2 class="font-semibold text-white mb-5">Posting Settings</h2>
+
+      <div class="space-y-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-white text-sm font-medium">Auto-approve posts</p>
+            <p class="text-gray-400 text-xs mt-0.5">Posts go live automatically without manual review</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" name="auto_approve" value="true" {% if auto_approve %}checked{% endif %} class="sr-only peer">
+            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+          </label>
+        </div>
+
+        <div>
+          <label class="block text-sm text-white font-medium mb-2">Posts per day: <span id="ppd-val">{{ posts_per_day }}</span></label>
+          <input type="range" name="posts_per_day" min="1" max="24" value="{{ posts_per_day }}"
+                 oninput="document.getElementById('ppd-val').textContent=this.value"
+                 class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+          <div class="flex justify-between text-xs text-gray-500 mt-1">
+            <span>1/day</span><span>8/day (recommended)</span><span>24/day</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform Status -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <h2 class="font-semibold text-white mb-5">Platform Status</h2>
+      <div class="space-y-3">
+        {% set platforms = [
+          ('twitter', '𝕏  Twitter / X', api_status.twitter),
+          ('linkedin', 'in  LinkedIn', api_status.linkedin),
+          ('meta', 'f  Facebook / Instagram / Threads', api_status.meta),
+          ('tiktok', '♪  TikTok', api_status.tiktok),
+          ('youtube', '▶  YouTube', api_status.youtube),
+          ('pinterest', '📌  Pinterest', api_status.pinterest),
+        ] %}
+        {% for key, label, connected in platforms %}
+        <div class="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
+          <span class="text-sm text-gray-300">{{ label }}</span>
+          {% if connected %}
+          <span class="flex items-center gap-1.5 text-xs text-green-400">
+            <span class="w-2 h-2 bg-green-500 rounded-full"></span>Connected
+          </span>
+          {% else %}
+          <span class="flex items-center gap-1.5 text-xs text-gray-500">
+            <span class="w-2 h-2 bg-gray-600 rounded-full"></span>Not configured
+          </span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- AI Services -->
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <h2 class="font-semibold text-white mb-5">AI Services</h2>
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-300">🤖 Anthropic Claude</span>
+          <span class="flex items-center gap-1.5 text-xs {% if api_status.anthropic %}text-green-400{% else %}text-red-400{% endif %}">
+            <span class="w-2 h-2 rounded-full {% if api_status.anthropic %}bg-green-500{% else %}bg-red-500{% endif %}"></span>
+            {% if api_status.anthropic %}Connected{% else %}Missing API key{% endif %}
+          </span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-300">🎬 Runway Gen-3</span>
+          <span class="flex items-center gap-1.5 text-xs {% if api_status.runway %}text-green-400{% else %}text-gray-500{% endif %}">
+            <span class="w-2 h-2 rounded-full {% if api_status.runway %}bg-green-500{% else %}bg-gray-600{% endif %}"></span>
+            {% if api_status.runway %}Connected{% else %}Not configured{% endif %}
+          </span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-300">📰 NewsAPI</span>
+          <span class="flex items-center gap-1.5 text-xs {% if api_status.newsapi %}text-green-400{% else %}text-red-400{% endif %}">
+            <span class="w-2 h-2 rounded-full {% if api_status.newsapi %}bg-green-500{% else %}bg-red-500{% endif %}"></span>
+            {% if api_status.newsapi %}Connected{% else %}Missing API key{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-colors">
+      Save Settings
+    </button>
+
+  </form>
+
+</div>
+{% endblock %}

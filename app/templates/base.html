@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Content Creator{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#6366f1', dark: '#4f46e5' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside class="w-56 bg-gray-900 border-r border-gray-800 flex flex-col fixed h-full z-10">
+    <div class="p-5 border-b border-gray-800">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">CC</div>
+        <span class="font-bold text-white text-sm">Content Creator</span>
+      </div>
+    </div>
+
+    <nav class="flex-1 p-3 space-y-1 mt-2">
+      <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {% if request.url.path == '/' %}bg-indigo-600 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </a>
+      <a href="/news" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {% if '/news' in request.url.path %}bg-indigo-600 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 12h6m-6-4h.01M17 16h.01"/></svg>
+        News
+      </a>
+      <a href="/posts" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {% if '/posts' in request.url.path and '/news' not in request.url.path %}bg-indigo-600 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Posts
+      </a>
+      <a href="/niches" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {% if '/niches' in request.url.path %}bg-indigo-600 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+        Niches
+      </a>
+      <a href="/settings" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {% if '/settings' in request.url.path %}bg-indigo-600 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <!-- Scheduler status pill -->
+    <div class="p-4 border-t border-gray-800">
+      <div class="flex items-center gap-2 text-xs">
+        <div id="scheduler-dot" class="w-2 h-2 rounded-full bg-gray-600"></div>
+        <span id="scheduler-label" class="text-gray-500">Loading...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="ml-56 flex-1 p-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+    // Poll scheduler status every 30 seconds
+    async function updateStatus() {
+      try {
+        const r = await fetch('/api/status');
+        const data = await r.json();
+        const dot = document.getElementById('scheduler-dot');
+        const label = document.getElementById('scheduler-label');
+        if (data.scheduler_running) {
+          dot.className = 'w-2 h-2 rounded-full bg-green-500';
+          label.textContent = 'Scheduler active';
+          label.className = 'text-green-400';
+        } else {
+          dot.className = 'w-2 h-2 rounded-full bg-red-500';
+          label.textContent = 'Scheduler stopped';
+          label.className = 'text-red-400';
+        }
+      } catch(e) {}
+    }
+    updateStatus();
+    setInterval(updateStatus, 30000);
+  </script>
+</body>
+</html>

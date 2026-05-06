@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}News — Content Creator{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">News Articles</h1>
+      <p class="text-gray-400 text-sm mt-1">{{ total }} articles fetched — click any story to open it, or generate content from it</p>
+    </div>
+    <button type="button" onclick="fetchNow()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg text-gray-300 transition-colors">
+      🔄 Fetch More News
+    </button>
+  </div>
+
+  <!-- Search + Filter -->
+  <form method="GET" action="/news" class="flex gap-3 mb-6">
+    <input name="search" value="{{ search }}" placeholder="Search headlines..."
+           class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+    <select name="source"
+            class="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+      <option value="">All sources</option>
+      {% for s in sources %}
+      <option value="{{ s }}" {% if source == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors">Search</button>
+    {% if search or source %}
+    <a href="/news" class="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors">Clear</a>
+    {% endif %}
+  </form>
+
+  <!-- Articles grid -->
+  {% if items %}
+  <div class="space-y-3">
+    {% for item in items %}
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors" id="item-{{ item.id }}">
+      <div class="flex items-start gap-4">
+
+        <!-- Viral score badge -->
+        <div class="shrink-0 mt-1">
+          {% if item.viral_score > 0 %}
+          <div class="w-10 h-10 rounded-lg flex flex-col items-center justify-center
+            {% if item.viral_score >= 7 %}bg-green-900 border border-green-700
+            {% elif item.viral_score >= 5 %}bg-yellow-900 border border-yellow-700
+            {% else %}bg-gray-800 border border-gray-700{% endif %}">
+            <span class="text-xs font-bold {% if item.viral_score >= 7 %}text-green-300{% elif item.viral_score >= 5 %}text-yellow-300{% else %}text-gray-400{% endif %}">
+              {{ item.viral_score|round(0)|int }}
+            </span>
+            <span class="text-gray-500" style="font-size:9px">score</span>
+          </div>
+          {% else %}
+          <div class="w-10 h-10 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center">
+            <span class="text-gray-600 text-lg">—</span>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 min-w-0">
+          <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer"
+             class="text-white font-medium hover:text-indigo-300 transition-colors leading-snug block">
+            {{ item.title }} ↗
+          </a>
+          {% if item.description %}
+          <p class="text-gray-400 text-sm mt-1 line-clamp-2">{{ item.description }}</p>
+          {% endif %}
+          <div class="flex items-center gap-3 mt-2">
+            <span class="text-gray-600 text-xs">{{ item.source }}</span>
+            {% if item.published_at %}
+            <span class="text-gray-700 text-xs">{{ item.published_at.strftime('%b %d, %Y') }}</span>
+            {% endif %}
+            {% if item.processed %}
+            <span class="text-green-600 text-xs">✓ post created</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="shrink-0 flex flex-col gap-2">
+          <button type="button"
+            onclick="generatePost({{ item.id }}, this)"
+            class="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-white text-xs rounded-lg transition-colors whitespace-nowrap">
+            ✨ Generate Post
+          </button>
+          <button type="button"
+            onclick="generateVideo({{ item.id }}, this)"
+            class="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white text-xs rounded-lg transition-colors whitespace-nowrap">
+            🎬 Generate Video
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Status feedback area (shown after action) -->
+      <div id="status-{{ item.id }}" class="hidden mt-3 pt-3 border-t border-gray-800 text-sm"></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if pages > 1 %}
+  <div class="flex items-center justify-center gap-2 mt-8">
+    {% if page > 1 %}
+    <a href="/news?page={{ page-1 }}&search={{ search }}&source={{ source }}"
+       class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors">← Prev</a>
+    {% endif %}
+    <span class="text-gray-400 text-sm">Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}
+    <a href="/news?page={{ page+1 }}&search={{ search }}&source={{ source }}"
+       class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-16 text-center">
+    <p class="text-gray-400 text-lg mb-2">No articles yet</p>
+    <p class="text-gray-600 text-sm mb-6">Click "Fetch More News" to pull in the latest headlines</p>
+    <button type="button" onclick="fetchNow()" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors">
+      🔄 Fetch News Now
+    </button>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+async function generatePost(itemId, btn) {
+  const original = btn.textContent;
+  btn.textContent = '⏳ Writing...';
+  btn.disabled = true;
+
+  const status = document.getElementById(`status-${itemId}`);
+  status.className = 'mt-3 pt-3 border-t border-gray-800 text-sm';
+
+  try {
+    const r = await fetch(`/news/${itemId}/generate-post`, { method: 'POST' });
+    const data = await r.json();
+
+    if (data.error) {
+      status.innerHTML = `<span class="text-red-400">❌ ${data.error}</span>`;
+    } else {
+      status.innerHTML = `<span class="text-yellow-400">⏳ Generating caption with Claude...</span>`;
+      // Poll for result
+      pollStatus(itemId, 'post');
+    }
+  } catch(e) {
+    status.innerHTML = `<span class="text-red-400">❌ Failed: ${e.message}</span>`;
+  }
+
+  setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 3000);
+}
+
+async function generateVideo(itemId, btn) {
+  const original = btn.textContent;
+  btn.textContent = '⏳ Submitting...';
+  btn.disabled = true;
+
+  const status = document.getElementById(`status-${itemId}`);
+  status.className = 'mt-3 pt-3 border-t border-gray-800 text-sm';
+
+  try {
+    const r = await fetch(`/news/${itemId}/generate-video`, { method: 'POST' });
+    const data = await r.json();
+
+    if (data.error) {
+      status.innerHTML = `<span class="text-red-400">❌ ${data.error}</span>`;
+    } else {
+      status.innerHTML = `<span class="text-purple-400">🎬 Video generation started — this takes 1–2 minutes. Check the Posts page when done.</span>`;
+      pollStatus(itemId, 'video');
+    }
+  } catch(e) {
+    status.innerHTML = `<span class="text-red-400">❌ Failed: ${e.message}</span>`;
+  }
+
+  setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 4000);
+}
+
+async function pollStatus(itemId, type) {
+  const status = document.getElementById(`status-${itemId}`);
+  let attempts = 0;
+  const maxAttempts = type === 'video' ? 36 : 12; // 3 min for video, 1 min for post
+  const interval = type === 'video' ? 5000 : 5000;
+
+  const poll = setInterval(async () => {
+    attempts++;
+    try {
+      const r = await fetch(`/news/${itemId}/status`);
+      const data = await r.json();
+
+      if (data.posts && data.posts.length > 0) {
+        const post = data.posts[data.posts.length - 1];
+        if (type === 'video' && post.video_url) {
+          status.innerHTML = `<span class="text-green-400">✅ Video ready! <a href="/posts" class="underline">View in Posts →</a></span>`;
+          clearInterval(poll);
+        } else if (type === 'post' && post.caption) {
+          status.innerHTML = `<span class="text-green-400">✅ Post created: "${post.caption.substring(0, 80)}..." <a href="/posts" class="underline text-indigo-300">View →</a></span>`;
+          clearInterval(poll);
+        }
+      }
+    } catch(e) {}
+
+    if (attempts >= maxAttempts) {
+      clearInterval(poll);
+      if (type === 'video') {
+        status.innerHTML += ` <span class="text-gray-500">(Check <a href="/posts" class="underline text-indigo-400">Posts page</a> in a few minutes)</span>`;
+      }
+    }
+  }, interval);
+}
+
+async function fetchNow() {
+  const btn = event.target;
+  btn.textContent = '⏳ Fetching...';
+  btn.disabled = true;
+  await fetch('/api/run/fetch-news', { method: 'POST' });
+  setTimeout(() => { location.reload(); }, 4000);
+}
+</script>
+{% endblock %}

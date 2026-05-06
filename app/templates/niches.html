@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Niches — Content Creator{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Content Niches</h1>
+      <p class="text-gray-400 text-sm mt-1">Define what topics your content covers</p>
+    </div>
+    <button onclick="askClaude()" class="px-4 py-2 bg-purple-700 hover:bg-purple-600 text-sm rounded-lg text-white transition-colors">
+      🤖 Ask Claude for Ideas
+    </button>
+  </div>
+
+  <!-- Claude suggestions area -->
+  <div id="suggestions" class="hidden mb-6 bg-purple-950 border border-purple-800 rounded-xl p-5">
+    <h3 class="text-purple-300 font-semibold mb-3">Claude's Suggestions</h3>
+    <div id="suggestions-list" class="space-y-3"></div>
+  </div>
+
+  <!-- Existing niches -->
+  <div class="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800 mb-6">
+    {% if niches %}
+      {% for niche in niches %}
+      <div class="p-5 flex items-center gap-4">
+        <div class="flex-1">
+          <div class="flex items-center gap-2">
+            <h3 class="text-white font-medium">{{ niche.name }}</h3>
+            {% if not niche.enabled %}
+            <span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">disabled</span>
+            {% endif %}
+          </div>
+          {% if niche.description %}
+          <p class="text-gray-400 text-sm mt-1">{{ niche.description }}</p>
+          {% endif %}
+          {% if niche.keywords %}
+          <p class="text-gray-600 text-xs mt-1">Keywords: {{ niche.keywords }}</p>
+          {% endif %}
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <form action="/niches/{{ niche.id }}/toggle" method="POST">
+            <button class="px-3 py-1.5 text-xs rounded-lg transition-colors {% if niche.enabled %}bg-green-900 text-green-300 hover:bg-green-800{% else %}bg-gray-800 text-gray-400 hover:bg-gray-700{% endif %}">
+              {% if niche.enabled %}● On{% else %}○ Off{% endif %}
+            </button>
+          </form>
+          <form action="/niches/{{ niche.id }}/delete" method="POST" onsubmit="return confirm('Delete this niche?')">
+            <button class="px-3 py-1.5 text-xs rounded-lg bg-gray-800 text-gray-500 hover:bg-red-900 hover:text-red-300 transition-colors">
+              Delete
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="p-8 text-center text-gray-500 text-sm">No niches yet — add one below</div>
+    {% endif %}
+  </div>
+
+  <!-- Add niche form -->
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <h2 class="font-semibold text-white mb-4">Add New Niche</h2>
+    <form action="/niches/add" method="POST" class="space-y-4">
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Name <span class="text-red-400">*</span></label>
+        <input name="name" required placeholder="e.g. Technology & AI"
+               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Description</label>
+        <input name="description" placeholder="What kind of content to create for this niche"
+               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+      </div>
+      <div>
+        <label class="block text-sm text-gray-400 mb-1">Keywords</label>
+        <input name="keywords" placeholder="keyword1, keyword2, keyword3"
+               class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+      </div>
+      <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors">
+        Add Niche
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+async function askClaude() {
+  const btn = event.target;
+  btn.textContent = '⏳ Thinking...';
+  btn.disabled = true;
+
+  try {
+    const r = await fetch('/niches/suggest');
+    const data = await r.json();
+
+    if (data.error) {
+      alert('Error: ' + data.error);
+      return;
+    }
+
+    const list = document.getElementById('suggestions-list');
+    list.innerHTML = '';
+
+    data.suggestions.forEach(s => {
+      list.innerHTML += `
+        <div class="bg-purple-900/40 rounded-lg p-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-white font-medium">${s.name}</h4>
+            <button onclick="addNiche('${s.name.replace(/'/g,"\\'")}', '${s.description.replace(/'/g,"\\'")}', '${s.keywords.replace(/'/g,"\\'")}') "
+                    class="px-3 py-1 bg-purple-700 hover:bg-purple-600 text-white text-xs rounded-lg transition-colors">
+              + Add
+            </button>
+          </div>
+          <p class="text-purple-200 text-sm mt-1">${s.description}</p>
+          <p class="text-purple-400 text-xs mt-1">Keywords: ${s.keywords}</p>
+        </div>
+      `;
+    });
+
+    document.getElementById('suggestions').classList.remove('hidden');
+  } catch(e) {
+    alert('Failed to get suggestions. Make sure the app is running.');
+  } finally {
+    btn.textContent = '🤖 Ask Claude for Ideas';
+    btn.disabled = false;
+  }
+}
+
+function addNiche(name, description, keywords) {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/niches/add';
+  form.innerHTML = `
+    <input name="name" value="${name}">
+    <input name="description" value="${description}">
+    <input name="keywords" value="${keywords}">
+  `;
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
+{% endblock %}
