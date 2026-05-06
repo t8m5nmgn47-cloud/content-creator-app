@@ -16,10 +16,21 @@
     </form>
   </div>
 
+  <!-- Search bar -->
+  <form method="GET" action="/posts" class="flex gap-3 mb-4">
+    <input type="hidden" name="filter" value="{{ filter }}" />
+    <input name="search" value="{{ search }}" placeholder="Search captions..."
+           class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500" />
+    <button type="submit" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors">Search</button>
+    {% if search %}
+    <a href="/posts?filter={{ filter }}" class="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors">Clear</a>
+    {% endif %}
+  </form>
+
   <!-- Filter tabs -->
   <div class="flex gap-2 mb-6 flex-wrap">
     {% for tab, label in [('all','All'), ('processing','⏳ Processing'), ('approved','Approved'), ('pending','Pending'), ('posted','Posted'), ('failed','Failed')] %}
-    <a href="/posts?filter={{ tab }}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if filter == tab %}bg-indigo-600 text-white{% else %}bg-gray-800 text-gray-400 hover:text-white{% endif %}">
+    <a href="/posts?filter={{ tab }}{% if search %}&search={{ search }}{% endif %}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if filter == tab %}bg-indigo-600 text-white{% else %}bg-gray-800 text-gray-400 hover:text-white{% endif %}">
       {{ label }}
     </a>
     {% endfor %}
@@ -51,6 +62,14 @@
             {% endif %}
             {% if post.error_message %}
             <p class="text-red-400 text-xs mt-1">⚠ {{ post.error_message }}</p>
+            {% endif %}
+            {% if post.video_url %}
+            <div class="mt-3">
+              <video controls class="rounded-lg max-w-sm w-full" style="max-height:180px"
+                     src="{{ post.video_url }}" preload="none">
+                Your browser doesn't support video.
+              </video>
+            </div>
             {% endif %}
           </div>
 
@@ -121,12 +140,31 @@
     {% else %}
     <div class="p-12 text-center">
       <p class="text-gray-500">No posts found</p>
+      {% if not search %}
       <form action="/posts/generate-now" method="POST" class="mt-4">
         <button class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-sm rounded-lg text-white transition-colors">Generate Posts Now</button>
       </form>
+      {% endif %}
     </div>
     {% endif %}
   </div>
+
+  <!-- Pagination -->
+  {% if pages > 1 %}
+  <div class="flex items-center justify-center gap-2 mt-6">
+    {% if page > 1 %}
+    <a href="/posts?filter={{ filter }}&page={{ page-1 }}{% if search %}&search={{ search }}{% endif %}"
+       class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors">← Prev</a>
+    {% endif %}
+    <span class="text-gray-400 text-sm">Page {{ page }} of {{ pages }} &nbsp;·&nbsp; {{ total }} posts</span>
+    {% if page < pages %}
+    <a href="/posts?filter={{ filter }}&page={{ page+1 }}{% if search %}&search={{ search }}{% endif %}"
+       class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors">Next →</a>
+    {% endif %}
+  </div>
+  {% else %}
+  <p class="text-center text-gray-600 text-xs mt-4">{{ total }} post{{ 's' if total != 1 else '' }}</p>
+  {% endif %}
 
 </div>
 

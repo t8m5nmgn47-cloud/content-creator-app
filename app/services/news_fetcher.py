@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 import feedparser
+import httpx
 from newsapi import NewsApiClient
 from sqlalchemy.orm import Session
 
@@ -18,14 +19,31 @@ from app.models import AppLog, NewsItem
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Starter RSS feeds — high-traffic sources
+# RSS User-Agent (some feeds block the default feedparser UA)
+RSS_UA = "Mozilla/5.0 (compatible; ContentBot/1.0)"
+
+# Verified working RSS feeds (tested with httpx + feedparser)
 RSS_FEEDS = [
-    ("BBC News", "http://feeds.bbci.co.uk/news/rss.xml"),
-    ("Reuters", "https://feeds.reuters.com/reuters/topNews"),
-    ("TechCrunch", "https://techcrunch.com/feed/"),
-    ("AP News", "https://rsshub.app/apnews/topics/apf-topnews"),
-    ("The Verge", "https://www.theverge.com/rss/index.xml"),
-    ("Ars Technica", "http://feeds.arstechnica.com/arstechnica/index"),
+    # General News
+    ("CNN",                 "http://rss.cnn.com/rss/cnn_topstories.rss"),
+    ("NPR Top Stories",     "https://feeds.npr.org/1001/rss.xml"),
+    ("CBS News",            "https://www.cbsnews.com/latest/rss/main"),
+    ("NY Times World",      "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"),
+    ("The Guardian World",  "https://www.theguardian.com/world/rss"),
+    # Business & Finance
+    ("CNBC Top News",       "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"),
+    ("NY Times Business",   "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"),
+    ("The Guardian Business","https://www.theguardian.com/business/rss"),
+    # Technology
+    ("Ars Technica",        "http://feeds.arstechnica.com/arstechnica/index"),
+    ("TechCrunch",          "https://techcrunch.com/feed/"),
+    ("Engadget",            "https://www.engadget.com/rss.xml"),
+    ("CNBC Tech",           "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"),
+    ("NY Times Tech",       "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml"),
+    ("The Guardian Tech",   "https://www.theguardian.com/technology/rss"),
+    ("9to5Mac",             "https://9to5mac.com/feed/"),
+    ("9to5Google",          "https://9to5google.com/feed/"),
+    ("Hacker News",         "https://hnrss.org/frontpage"),
 ]
 
 # NewsAPI categories to pull from
@@ -116,13 +134,28 @@ def fetch_from_newsapi(db: Session) -> int:
 
 
 def fetch_from_rss(db: Session) -> int:
-    """Fetch articles from all configured RSS feeds."""
+    """Fetch articles from all configured RSS feeds.
+    Uses httpx with a browser-like User-Agent so feeds don't block us.
+    """
     new_count = 0
 
     for feed_name, feed_url in RSS_FEEDS:
         try:
-            feed = feedparser.parse(feed_url)
-            for entry in feed.entries[:15]:  # max 15 per feed
+            # Fetch with httpx first (many feeds block feedparser's default UA)
+            r = httpx.get(
+                feed_url,
+                timeout=15,
+                follow_redirects=True,
+                headers={"User-Agent": RSS_UA},
+            )
+            if r.status_code != 200:
+                logger.warning(f"RSS {feed_name}: HTTP {r.status_code}")
+                continue
+
+            feed = feedparser.parse(r.content)
+            entries = feed.entries[:15]  # max 15 per feed
+
+            for entry in entries:
                 published = None
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
                     try:
@@ -144,10 +177,14 @@ def fetch_from_rss(db: Session) -> int:
                 )
                 if saved:
                     new_count += 1
+
+            if entries:
+                logger.info(f"RSS {feed_name}: {len(entries)} checked, {new_count} new so far")
+
         except Exception as e:
             logger.error(f"RSS error for {feed_name}: {e}")
 
-    logger.info(f"RSS: fetched {new_count} new articles")
+    logger.info(f"RSS: fetched {new_count} new articles total")
     return new_count
 
 

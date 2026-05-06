@@ -15,14 +15,17 @@ def get_status(db: Session = Depends(get_db)):
     now = datetime.utcnow()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
+    pending_count = db.query(Post).filter(Post.status == "pending").count()
+    approved_count = db.query(Post).filter(Post.status == "approved").count()
+
     return {
         "scheduler_running": scheduler.running,
         "posts_today": db.query(Post).filter(
             Post.status == "posted", Post.posted_at >= today_start
         ).count(),
-        "queue_size": db.query(Post).filter(
-            Post.status.in_(["pending", "approved"])
-        ).count(),
+        "queue_size": pending_count + approved_count,
+        "pending_count": pending_count,
+        "approved_count": approved_count,
         "news_items_total": db.query(NewsItem).count(),
         "last_fetch": db.query(AppLog)
             .filter(AppLog.job == "news_fetcher", AppLog.level == "info")

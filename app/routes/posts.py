@@ -12,7 +12,14 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/posts", response_class=HTMLResponse)
-def posts_page(request: Request, filter: str = "all", db: Session = Depends(get_db)):
+def posts_page(
+    request: Request,
+    filter: str = "all",
+    search: str = "",
+    page: int = 1,
+    db: Session = Depends(get_db),
+):
+    per_page = 25
     query = db.query(Post)
 
     if filter == "processing":
@@ -26,12 +33,21 @@ def posts_page(request: Request, filter: str = "all", db: Session = Depends(get_
     elif filter == "failed":
         query = query.filter(Post.status == "failed")
 
-    posts = query.order_by(Post.created_at.desc()).limit(100).all()
+    if search:
+        query = query.filter(Post.caption.ilike(f"%{search}%"))
+
+    total = query.count()
+    posts = query.order_by(Post.created_at.desc()).offset((page - 1) * per_page).limit(per_page).all()
+    pages = (total + per_page - 1) // per_page
 
     return templates.TemplateResponse("posts.html", {
         "request": request,
         "posts": posts,
         "filter": filter,
+        "search": search,
+        "page": page,
+        "pages": pages,
+        "total": total,
     })
 
 

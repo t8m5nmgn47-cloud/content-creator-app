@@ -21,7 +21,7 @@
   </div>
 
   <!-- Stats Bar -->
-  <div class="grid grid-cols-4 gap-4 mb-8">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
     <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
       <p class="text-gray-400 text-xs font-medium uppercase tracking-wide">Posts Today</p>
       <p class="text-3xl font-bold text-white mt-1">{{ posts_today }}</p>
@@ -37,12 +37,37 @@
       <p class="text-3xl font-bold {% if success_rate >= 90 %}text-green-400{% elif success_rate >= 70 %}text-yellow-400{% else %}text-red-400{% endif %} mt-1">{{ success_rate }}%</p>
       <p class="text-gray-500 text-xs mt-1">all time</p>
     </div>
-    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+    <a href="/posts" class="bg-gray-900 border border-gray-800 rounded-xl p-5 hover:border-gray-700 transition-colors block">
       <p class="text-gray-400 text-xs font-medium uppercase tracking-wide">Queue</p>
-      <p class="text-3xl font-bold text-white mt-1">{{ queued_posts|length }}</p>
-      <p class="text-gray-500 text-xs mt-1">posts ready</p>
-    </div>
+      <p class="text-3xl font-bold text-white mt-1">{{ approved_count + pending_count }}</p>
+      <p class="text-gray-500 text-xs mt-1">
+        <span class="text-blue-400">{{ approved_count }} approved</span>
+        {% if pending_count %} · <span class="text-yellow-400">{{ pending_count }} pending</span>{% endif %}
+        {% if failed_count %} · <span class="text-red-400">{{ failed_count }} failed</span>{% endif %}
+      </p>
+    </a>
   </div>
+
+  <!-- Next Post Banner -->
+  {% if next_post %}
+  <div class="bg-indigo-950 border border-indigo-800 rounded-xl p-4 mb-8 flex items-center gap-4">
+    <div class="w-9 h-9 bg-indigo-800 rounded-full flex items-center justify-center text-indigo-200 shrink-0">🕐</div>
+    <div class="flex-1 min-w-0">
+      <p class="text-indigo-200 text-sm font-medium">
+        Next post scheduled for
+        {% if next_post.scheduled_for %}
+          <span class="text-white">{{ next_post.scheduled_for.strftime('%A, %b %d at %I:%M %p') }}</span>
+        {% else %}
+          <span class="text-white">as soon as approved</span>
+        {% endif %}
+      </p>
+      <p class="text-indigo-400 text-xs mt-0.5 truncate">{{ next_post.caption[:100] }}...</p>
+    </div>
+    <span class="shrink-0 px-2 py-1 rounded text-xs font-medium {% if next_post.status == 'approved' %}bg-blue-900 text-blue-300{% else %}bg-yellow-900 text-yellow-300{% endif %}">
+      {{ next_post.status }}
+    </span>
+  </div>
+  {% endif %}
 
   <div class="grid grid-cols-3 gap-6">
 
@@ -114,25 +139,36 @@
               {% if scheduler_running %}Running{% else %}Stopped{% endif %}
             </span>
           </div>
+          {% for service, label in [('twitter','X / Twitter'), ('claude','Claude AI'), ('newsapi','NewsAPI'), ('runway','Runway Video')] %}
           <div class="flex items-center justify-between">
-            <span class="text-gray-400 text-sm">X/Twitter</span>
+            <span class="text-gray-400 text-sm">{{ label }}</span>
+            {% if api_status[service] %}
             <span class="flex items-center gap-1.5 text-xs font-medium text-green-400">
               <span class="w-2 h-2 rounded-full bg-green-500"></span>Connected
             </span>
+            {% else %}
+            <a href="/settings" class="flex items-center gap-1.5 text-xs font-medium text-yellow-400 hover:text-yellow-300">
+              <span class="w-2 h-2 rounded-full bg-yellow-500"></span>Add key →
+            </a>
+            {% endif %}
           </div>
-          <div class="flex items-center justify-between">
-            <span class="text-gray-400 text-sm">Claude AI</span>
-            <span class="flex items-center gap-1.5 text-xs font-medium text-green-400">
-              <span class="w-2 h-2 rounded-full bg-green-500"></span>Connected
-            </span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-gray-400 text-sm">NewsAPI</span>
-            <span class="flex items-center gap-1.5 text-xs font-medium text-green-400">
-              <span class="w-2 h-2 rounded-full bg-green-500"></span>Connected
-            </span>
-          </div>
+          {% endfor %}
         </div>
+      </div>
+
+      <!-- Today's Posting Schedule -->
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <h2 class="font-semibold text-white mb-3">Today's Schedule</h2>
+        <div class="grid grid-cols-2 gap-1.5">
+          {% set times = ['7:00 AM','9:00 AM','11:30 AM','1:00 PM','3:00 PM','5:30 PM','7:00 PM','9:00 PM'] %}
+          {% for t in times %}
+          <div class="flex items-center gap-2 py-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+            <span class="text-gray-400 text-xs">{{ t }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="text-gray-600 text-xs mt-3">All times Central (CT)</p>
       </div>
 
       <!-- Latest News -->

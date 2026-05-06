@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import AppLog, NewsItem, Post
 from app.scheduler import scheduler
+from app.config import get_settings
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -69,6 +70,28 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # Scheduler status
     scheduler_running = scheduler.running
 
+    # Next scheduled post
+    next_post = (
+        db.query(Post)
+        .filter(Post.status.in_(["pending", "approved"]), Post.scheduled_for >= now)
+        .order_by(Post.scheduled_for.asc())
+        .first()
+    )
+
+    # API key status
+    settings = get_settings()
+    api_status = {
+        "twitter": bool(settings.twitter_api_key and settings.twitter_access_token),
+        "claude": bool(settings.anthropic_api_key),
+        "newsapi": bool(settings.news_api_key),
+        "runway": bool(settings.runway_api_key),
+    }
+
+    # Counts for mini stats
+    pending_count = db.query(Post).filter(Post.status == "pending").count()
+    approved_count = db.query(Post).filter(Post.status == "approved").count()
+    failed_count = db.query(Post).filter(Post.status == "failed").count()
+
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "posts_today": posts_today,
@@ -79,5 +102,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "latest_news": latest_news,
         "recent_logs": recent_logs,
         "scheduler_running": scheduler_running,
+        "next_post": next_post,
+        "api_status": api_status,
+        "pending_count": pending_count,
+        "approved_count": approved_count,
+        "failed_count": failed_count,
         "now": now,
     })

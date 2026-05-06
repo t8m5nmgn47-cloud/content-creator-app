@@ -40,6 +40,7 @@
       <a href="/posts" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {% if '/posts' in request.url.path and '/news' not in request.url.path %}bg-indigo-600 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         Posts
+        <span id="pending-badge" class="hidden ml-auto bg-yellow-500 text-black text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[1.25rem] text-center leading-none"></span>
       </a>
       <a href="/niches" class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium {% if '/niches' in request.url.path %}bg-indigo-600 text-white{% else %}text-gray-400 hover:bg-gray-800 hover:text-white{% endif %} transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
@@ -66,7 +67,7 @@
   </main>
 
   <script>
-    // Poll scheduler status every 30 seconds
+    // Poll scheduler status + pending badge every 30 seconds
     async function updateStatus() {
       try {
         const r = await fetch('/api/status');
@@ -76,11 +77,22 @@
         if (data.scheduler_running) {
           dot.className = 'w-2 h-2 rounded-full bg-green-500';
           label.textContent = 'Scheduler active';
-          label.className = 'text-green-400';
+          label.className = 'text-green-400 text-xs';
         } else {
           dot.className = 'w-2 h-2 rounded-full bg-red-500';
           label.textContent = 'Scheduler stopped';
-          label.className = 'text-red-400';
+          label.className = 'text-red-400 text-xs';
+        }
+        // Pending badge
+        const badge = document.getElementById('pending-badge');
+        if (badge) {
+          const pending = (data.pending_count || 0);
+          if (pending > 0) {
+            badge.textContent = pending;
+            badge.classList.remove('hidden');
+          } else {
+            badge.classList.add('hidden');
+          }
         }
       } catch(e) {}
     }
