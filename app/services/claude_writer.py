@@ -27,7 +27,7 @@ def generate_twitter_post(title: str, description: str = "") -> dict:
     """
     client = _get_client()
 
-    prompt = f"""You are a 50-year-old dad explaining today's news at the dinner table. You grew up in the 80s, lived through the 90s and 2000s, and you have an analogy for everything. You're not trying to be funny — you just are, because you explain everything through things that made sense back then.
+    prompt = f"""You are a master of the Explainer tweet — you take complicated news and make it make sense in one or two sentences using a perfect analogy. You rotate through four flavors to keep things fresh.
 
 Headline: {title}
 Details: {description[:300] if description else 'N/A'}
@@ -41,18 +41,26 @@ Respond with ONLY valid JSON:
   "niche": "Technology"
 }}
 
-Your voice:
-- Connect the story to something from the 90s or 2000s that everyone remembers: Blockbuster, AOL dialup, Napster, MySpace, Tamagotchis, Y2K, the Motorola Razr, AIM away messages, Limewire, Circuit City, RadioShack, Kazaa, burning CDs, the Nokia 3310, Encarta encyclopedia, Ask Jeeves, MapQuest printing directions, frosted tips, cargo shorts, etc.
-- Structure: explain what's happening now, then hit them with the analogy. Short and confident.
-- Matter-of-fact tone. You've seen this before. You're not impressed.
-- Slightly confused by modern things but you've figured out the equivalent
-- Examples of the vibe:
-  "So AI is doing your homework now. We had Cliff Notes. Same thing, different font."
-  "They shut down the crypto exchange and everyone lost their money. We called that a bank in 2008."
-  "Apple is charging $20/month for features that used to be free. Blockbuster late fees had more integrity."
+Pick ONE of these four flavors — whichever fits the story best:
+
+1. FUNNY EXPLAINER — use a relatable analogy that makes the absurdity land
+   Example: "The debt ceiling explained: you set a spending limit, hit it, then called to raise it so you could pay the bill for raising it. Every year."
+
+2. SERIOUS EXPLAINER — strip it down to the uncomfortable truth, no fluff
+   Example: "Layoffs explained: cutting headcount is the fastest way to make the numbers look better by Friday. The actual problem is still there Monday."
+
+3. HOPEFUL EXPLAINER — find the silver lining or the bigger pattern that says it'll be okay
+   Example: "AI taking jobs explained: the internet killed travel agents and created 500 job titles that didn't have names in 1995. We've been here before."
+
+4. CYNICAL EXPLAINER — name the thing everyone's thinking but nobody's saying out loud
+   Example: "Tech startup valuations explained: someone important said a big number, someone else agreed, and now it's true until it isn't."
+
+Format rules:
+- Start with "[Topic] explained:" or a one-line setup, then deliver the analogy
 - Max 240 chars
 - No hashtags in the caption
-- 1 emoji max, only if your dad-self would actually use it
+- 1 emoji max, only if it sharpens the point
+- The analogy should feel inevitable — like it was always the right comparison
 
 viral_score: 1-10 engagement likelihood
 niche: Technology, Business, Entertainment, Health, Science, Politics, Sports, Finance, AI, or Other"""
@@ -196,7 +204,7 @@ def generate_post_from_trend(
     energy_desc = ["very calm and measured", "low-key", "moderate energy", "energetic and enthusiastic", "fired up and intense"][tone_energy - 1]
     casual_desc = ["formal, proper grammar", "mostly formal", "conversational", "casual and relaxed", "very casual — fragments, lowercase fine, ellipses ok"][tone_casual - 1]
 
-    prompt = f"""You are a 50-year-old dad explaining trending news at the dinner table. You grew up in the 80s, lived through the 90s and 2000s, and you have a reference for everything. You're not trying to be funny — you just are, because you explain everything through things that made sense back then.
+    prompt = f"""You are a master of the Explainer tweet — you take complicated trending news and make it click in one or two sentences. You write 3 variations, each using a different explainer flavor.
 
 Topic: {topic}
 What's happening: {summary}
@@ -208,13 +216,15 @@ Tone settings (apply to ALL 3 variations):
 - Energy: {energy_desc}
 - Style: {casual_desc}
 
-Your reference bank — use these freely:
-Blockbuster, AOL dialup, Napster, MySpace, Tamagotchis, Y2K, the Motorola Razr, AIM away messages, Limewire, Circuit City, RadioShack, Kazaa, burning CDs, the Nokia 3310, Encarta encyclopedia, Ask Jeeves, MapQuest printing directions, frosted tips, cargo shorts, the Macarena, Saturday morning cartoons, Beanie Babies, dial-up modems, floppy disks, Sears catalog, Blockbuster late fees, MSN Messenger, the Sears catalog, renting movies, pay phones
+The 3 variations must each use a different flavor:
+1. "casual" — FUNNY EXPLAINER: use a relatable analogy that makes the absurdity land naturally
+   Example: "The debt ceiling explained: you set a limit, hit it, called to raise it so you could pay for raising it. Every year."
 
-Write 3 variations with the same dad voice but different angles:
-1. "casual" — matter-of-fact analogy, like you've seen this exact thing before just with different packaging
-2. "hot take" — mild dad outrage or disbelief, compare today's story to how things worked back then and it was fine
-3. "question" — genuinely puzzled by modern things, ask the question every dad is thinking
+2. "hot take" — CYNICAL EXPLAINER: name the uncomfortable truth everyone's thinking but not saying
+   Example: "Tech layoffs explained: cutting people is the fastest way to make the numbers look good by Friday. The problem is still there Monday."
+
+3. "question" — HOPEFUL or SERIOUS EXPLAINER: zoom out to the bigger pattern, either reassuring or sobering
+   Example: "AI taking jobs explained: the internet killed travel agents and created 500 job titles that didn't exist in 1995. We've been here before."
 
 Respond with ONLY valid JSON:
 {{
@@ -240,11 +250,11 @@ Respond with ONLY valid JSON:
 }}
 
 Rules for all 3:
-- Apply tone settings — they shape the energy level, not the voice (always dad)
-- Short, confident sentences. You've seen this before. You're not impressed.
-- The 90s/2000s reference should feel natural, not forced
+- Apply tone settings — they shape energy level and formality
+- Start with "[Topic] explained:" or a tight setup line, then land the analogy
+- The analogy should feel inevitable, not forced
 - Max 240 chars per caption, no hashtags inside caption
-- 1 emoji max per variation, only if dad-you would actually use it"""
+- 1 emoji max, only if it sharpens the point"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
