@@ -125,6 +125,24 @@ def save_post_edit(
     return RedirectResponse(url="/posts", status_code=303)
 
 
+@router.post("/posts/{post_id}/mark-posted")
+def mark_posted(post_id: int, db: Session = Depends(get_db)):
+    """Manually mark a post as already sent (e.g. posted directly on Twitter)."""
+    from datetime import datetime
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if post:
+        post.status = "posted"
+        post.posted_at = datetime.utcnow()
+        post.error_message = ""
+        db.add(AppLog(
+            level="info",
+            job="posts",
+            message=f"Post {post_id} manually marked as posted",
+        ))
+        db.commit()
+    return RedirectResponse(url="/", status_code=303)
+
+
 @router.post("/posts/{post_id}/post-now")
 def post_now(post_id: int, db: Session = Depends(get_db)):
     """Send a specific post immediately, bypassing the schedule."""
