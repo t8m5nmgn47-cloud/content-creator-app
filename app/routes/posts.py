@@ -157,6 +157,68 @@ def post_now(post_id: int, db: Session = Depends(get_db)):
     return RedirectResponse(url="/posts", status_code=303)
 
 
+@router.post("/posts/compose")
+async def compose_post(request: Request, db: Session = Depends(get_db)):
+    """Take a user draft and return 4 Claude-polished variations."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+
+    draft = (body.get("draft") or "").strip()
+    if not draft:
+        return JSONResponse({"error": "Draft cannot be empty"}, status_code=400)
+
+    from app.services.claude_writer import improve_post_draft
+    try:
+        result = improve_post_draft(draft)
+        return JSONResponse(result)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.post("/posts/compose/save")
+async def save_composed_post(request: Request, db: Session = Depends(get_db)):
+    """Save a composed post to the queue."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid request"}, status_code=400)
+
+    caption = (body.get("caption") or "").strip()
+    hashtags = (body.get("hashtags") or "").strip()
+    post_now = body.get("post_now", False)
+
+    if not caption:
+        return JSONResponse({"error": "Caption is required"}, status_code=400)
+
+    from datetime import timedelta
+    from app.services.claude_writer import _next_schedule_slot
+
+    scheduled = datetime.utcnow() + timedelta(minutes=5) if post_now else _next_schedule_slot(db)
+
+    post = Post(
+        news_item_id=None,
+        platform="twitter",
+        caption=caption,
+        hashtags=hashtags,
+        hook="composed",
+        status="approved",
+        scheduled_for=scheduled,
+    )
+    db.add(post)
+    db.add(AppLog(level="info", job="posts", message="Post created via compose"))
+    db.commit()
+    db.refresh(post)
+
+    if post_now:
+        from app.services.twitter_poster import post_tweet
+        success = post_tweet(post.id)
+        return JSONResponse({"post_id": post.id, "posted": success})
+
+    return JSONResponse({"post_id": post.id, "posted": False})
+
+
 @router.post("/posts/generate-now")
 def generate_now():
     """Manually trigger one content generation cycle."""

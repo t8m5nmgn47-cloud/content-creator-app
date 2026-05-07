@@ -27,31 +27,43 @@ def generate_twitter_post(title: str, description: str = "") -> dict:
     """
     client = _get_client()
 
-    prompt = f"""You are an expert social media content creator. Given this news headline, create an engaging Twitter/X post.
+    prompt = f"""You are a master of the Explainer tweet — you take complicated news and make it make sense in one or two sentences using a perfect analogy. You rotate through four flavors to keep things fresh.
 
 Headline: {title}
-Description: {description[:300] if description else 'N/A'}
+Details: {description[:300] if description else 'N/A'}
 
-Respond with ONLY valid JSON in this exact format:
+Respond with ONLY valid JSON:
 {{
-  "caption": "The tweet text (max 240 chars, punchy, no filler, conversational tone, no quotes around it)",
-  "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
-  "hook": "A one-line attention-grabbing opening sentence",
+  "caption": "your tweet here",
+  "hashtags": ["hashtag1", "hashtag2"],
+  "hook": "the opening line",
   "viral_score": 7,
   "niche": "Technology"
 }}
 
-Rules for the caption:
-- Max 240 characters
-- Start with the hook — grab attention immediately
-- Be direct, punchy, conversational
-- Include 1-2 relevant emojis
-- Do NOT include the hashtags in the caption text (they are separate)
-- Do NOT use quotation marks around the caption
-- Write like a real person, not a press release
+Pick ONE of these four flavors — whichever fits the story best:
 
-The viral_score is 1-10 based on how likely this topic is to get engagement on Twitter right now.
-The niche is one of: Technology, Business, Entertainment, Health, Science, Politics, Sports, Finance, AI, Other"""
+1. FUNNY EXPLAINER — use a relatable analogy that makes the absurdity land
+   Example: "The debt ceiling explained: you set a spending limit, hit it, then called to raise it so you could pay the bill for raising it. Every year."
+
+2. SERIOUS EXPLAINER — strip it down to the uncomfortable truth, no fluff
+   Example: "Layoffs explained: cutting headcount is the fastest way to make the numbers look better by Friday. The actual problem is still there Monday."
+
+3. HOPEFUL EXPLAINER — find the silver lining or the bigger pattern that says it'll be okay
+   Example: "AI taking jobs explained: the internet killed travel agents and created 500 job titles that didn't have names in 1995. We've been here before."
+
+4. CYNICAL EXPLAINER — name the thing everyone's thinking but nobody's saying out loud
+   Example: "Tech startup valuations explained: someone important said a big number, someone else agreed, and now it's true until it isn't."
+
+Format rules:
+- Start with "[Topic] explained:" or a one-line setup, then deliver the analogy
+- Max 240 chars
+- No hashtags in the caption
+- 1 emoji max, only if it sharpens the point
+- The analogy should feel inevitable — like it was always the right comparison
+
+viral_score: 1-10 engagement likelihood
+niche: Technology, Business, Entertainment, Health, Science, Politics, Sports, Finance, AI, or Other"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
@@ -155,6 +167,75 @@ def generate_posts_for_queue():
         logger.info(f"Caption generation complete: {generated} posts queued")
         return generated
 
+
+def improve_post_draft(draft: str) -> dict:
+    """
+    Take a user's rough draft or idea and return 4 polished variations
+    in the Explainer voice — funny, serious, hopeful, cynical.
+    """
+    client = _get_client()
+
+    prompt = f"""A user wants to post this on Twitter. Take their rough idea and rewrite it as 4 polished variations using the Explainer voice — short, sharp, one perfect analogy or insight per tweet.
+
+Their draft: {draft}
+
+The 4 flavors:
+1. FUNNY — find the absurdity or irony, make it land with a relatable analogy
+2. SERIOUS — strip it to the uncomfortable truth, confident and direct
+3. HOPEFUL — find the silver lining or bigger pattern, reassuring without being naive
+4. CYNICAL — name the thing everyone's thinking but not saying
+
+Respond with ONLY valid JSON:
+{{
+  "variations": [
+    {{
+      "tone": "funny",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "serious",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "hopeful",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "cynical",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }}
+  ]
+}}
+
+Rules:
+- Stay true to the user's core idea — improve the delivery, don't replace the thought
+- Max 240 chars each
+- No hashtags inside the caption
+- 1 emoji max per variation, only if it sharpens the point
+- Short punchy sentences, fragments fine"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=900,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+
+    result = json.loads(raw)
+    for v in result.get("variations", []):
+        v["hashtags"] = [h.lstrip("#") for h in v.get("hashtags", [])]
+    return result
+
     except Exception as e:
         logger.error(f"generate_posts_for_queue failed: {e}")
         try:
@@ -167,41 +248,86 @@ def generate_posts_for_queue():
         db.close()
 
 
-def generate_post_from_trend(topic: str, summary: str, hook: str, best_angle: str) -> dict:
+def generate_post_from_trend(
+    topic: str,
+    summary: str,
+    hook: str,
+    best_angle: str,
+    tone_playful: int = 3,
+    tone_energy: int = 3,
+    tone_casual: int = 3,
+) -> dict:
     """
-    Generate a Twitter post from a trending story cluster.
-    Returns the same shape as generate_twitter_post.
+    Generate 3 Twitter post variations from a trending story cluster.
+    Tone sliders are 1-5: playful (1=serious, 5=playful), energy (1=calm, 5=fired up),
+    casual (1=formal, 5=very casual).
+    Returns {"variations": [{caption, hashtags, tone}, ...], "viral_score", "niche"}
     """
     client = _get_client()
 
-    prompt = f"""You are an expert social media content creator. Generate a viral Twitter/X post based on this trending story.
+    tone_playful = max(1, min(5, int(tone_playful)))
+    tone_energy = max(1, min(5, int(tone_energy)))
+    tone_casual = max(1, min(5, int(tone_casual)))
+
+    playful_desc = ["very serious and factual", "mostly serious", "balanced", "somewhat playful and fun", "very playful and witty"][tone_playful - 1]
+    energy_desc = ["very calm and measured", "low-key", "moderate energy", "energetic and enthusiastic", "fired up and intense"][tone_energy - 1]
+    casual_desc = ["formal, proper grammar", "mostly formal", "conversational", "casual and relaxed", "very casual — fragments, lowercase fine, ellipses ok"][tone_casual - 1]
+
+    prompt = f"""You are a master of the Explainer tweet — you take complicated trending news and make it click in one or two sentences. You write 3 variations, each using a different explainer flavor.
 
 Topic: {topic}
 What's happening: {summary}
-Suggested angle: {best_angle}
-Suggested opening hook: {hook}
+Angle to use: {best_angle}
+Suggested hook: {hook}
 
-Respond with ONLY valid JSON in this exact format:
+Tone settings (apply to ALL 3 variations):
+- Mood: {playful_desc}
+- Energy: {energy_desc}
+- Style: {casual_desc}
+
+The 3 variations must each use a different flavor:
+1. "casual" — FUNNY EXPLAINER: use a relatable analogy that makes the absurdity land naturally
+   Example: "The debt ceiling explained: you set a limit, hit it, called to raise it so you could pay for raising it. Every year."
+
+2. "hot take" — CYNICAL EXPLAINER: name the uncomfortable truth everyone's thinking but not saying
+   Example: "Tech layoffs explained: cutting people is the fastest way to make the numbers look good by Friday. The problem is still there Monday."
+
+3. "question" — HOPEFUL or SERIOUS EXPLAINER: zoom out to the bigger pattern, either reassuring or sobering
+   Example: "AI taking jobs explained: the internet killed travel agents and created 500 job titles that didn't exist in 1995. We've been here before."
+
+Respond with ONLY valid JSON:
 {{
-  "caption": "The tweet text (max 240 chars, punchy, conversational, no quotes)",
-  "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
-  "hook": "The opening line used",
+  "variations": [
+    {{
+      "tone": "casual",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "hot take",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "question",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }}
+  ],
   "viral_score": 8,
   "niche": "Technology"
 }}
 
-Rules:
-- Use the suggested angle — it should shape the whole post
-- Start with the hook or a variation of it
-- Max 240 characters for caption
-- 2–4 relevant hashtags (no # prefix)
-- Include 1–2 emojis
-- Write like a smart person, not a press release
-- Do NOT put hashtags inside the caption"""
+Rules for all 3:
+- Apply tone settings — they shape energy level and formality
+- Start with "[Topic] explained:" or a tight setup line, then land the analogy
+- The analogy should feel inevitable, not forced
+- Max 240 chars per caption, no hashtags inside caption
+- 1 emoji max, only if it sharpens the point"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=500,
+        max_tokens=900,
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -213,7 +339,8 @@ Rules:
     raw = raw.strip()
 
     result = json.loads(raw)
-    result["hashtags"] = [h.lstrip("#") for h in result.get("hashtags", [])]
+    for v in result.get("variations", []):
+        v["hashtags"] = [h.lstrip("#") for h in v.get("hashtags", [])]
     return result
 
 

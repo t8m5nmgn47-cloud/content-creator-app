@@ -107,7 +107,7 @@
             </div>
             <div class="text-xs text-gray-500">momentum</div>
           </div>
-          <button onclick="dismissCluster(this, {{ cluster.topic | tojson }})"
+          <button onclick="dismissCluster(this, {{ loop.index0 }})"
                   title="Dismiss this topic"
                   class="text-gray-600 hover:text-gray-300 transition-colors text-xl leading-none mt-0.5 px-1">×</button>
         </div>
@@ -213,8 +213,8 @@
   {% endif %}
 
   <!-- ── Create Post Modal ─────────────────────────────────── -->
-  <div id="create-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-    <div class="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl">
+  <div id="create-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-xl shadow-2xl my-auto">
 
       <!-- Header -->
       <div class="flex items-center justify-between p-5 border-b border-gray-800">
@@ -225,24 +225,63 @@
         <button onclick="closeModal()" class="text-gray-500 hover:text-white transition-colors text-xl leading-none">×</button>
       </div>
 
-      <!-- Loading state -->
-      <div id="modal-loading" class="p-8 text-center">
-        <div class="inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p class="text-gray-400 text-sm">Claude is writing your post...</p>
+      <!-- Tone sliders (always visible) -->
+      <div class="px-5 pt-4 pb-3 border-b border-gray-800 space-y-3">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Tone</p>
+
+        <div class="space-y-2.5">
+          <!-- Serious ↔ Playful -->
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-16 text-right shrink-0">Serious</span>
+            <input id="slider-playful" type="range" min="1" max="5" value="3"
+                   class="flex-1 accent-indigo-500 cursor-pointer h-1.5" />
+            <span class="text-xs text-gray-500 w-14 shrink-0">Playful</span>
+          </div>
+          <!-- Calm ↔ Fired up -->
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-16 text-right shrink-0">Calm</span>
+            <input id="slider-energy" type="range" min="1" max="5" value="3"
+                   class="flex-1 accent-indigo-500 cursor-pointer h-1.5" />
+            <span class="text-xs text-gray-500 w-14 shrink-0">Fired up</span>
+          </div>
+          <!-- Formal ↔ Casual -->
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-gray-500 w-16 text-right shrink-0">Formal</span>
+            <input id="slider-casual" type="range" min="1" max="5" value="3"
+                   class="flex-1 accent-indigo-500 cursor-pointer h-1.5" />
+            <span class="text-xs text-gray-500 w-14 shrink-0">Casual</span>
+          </div>
+        </div>
+
+        <button onclick="regenerate()"
+                class="w-full py-2 bg-indigo-700 hover:bg-indigo-600 text-white text-sm rounded-lg transition-colors font-medium mt-1">
+          ✨ Generate 3 Options
+        </button>
       </div>
 
-      <!-- Content (hidden until loaded) -->
-      <div id="modal-content" class="hidden p-5 space-y-4">
+      <!-- Loading state -->
+      <div id="modal-loading" class="hidden p-8 text-center">
+        <div class="inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p class="text-gray-400 text-sm">Claude is writing your options...</p>
+      </div>
+
+      <!-- Variation picker (shown after generation) -->
+      <div id="modal-variations" class="hidden px-5 pt-4 space-y-2">
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Pick a version</p>
+        <div id="variation-cards" class="space-y-2"></div>
+      </div>
+
+      <!-- Content (hidden until variation selected) -->
+      <div id="modal-content" class="hidden px-5 pb-5 pt-4 space-y-4">
 
         <div>
-          <label class="block text-xs text-gray-400 mb-1.5">Caption <span class="text-gray-600">(max 240 chars)</span></label>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs text-gray-400">Edit caption <span class="text-gray-600">(max 240 chars)</span></label>
+            <span id="char-count" class="text-xs text-gray-600">0 / 240</span>
+          </div>
           <textarea id="modal-caption" rows="4"
                     class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm resize-none focus:outline-none focus:border-indigo-500"
                     oninput="updateCharCount()"></textarea>
-          <div class="flex justify-between mt-1">
-            <span id="char-count" class="text-xs text-gray-600">0 / 240</span>
-            <button onclick="regenerate()" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">↻ Regenerate</button>
-          </div>
         </div>
 
         <div>
@@ -260,7 +299,7 @@
 
         <div id="modal-error" class="hidden bg-red-950 border border-red-800 rounded-lg p-3 text-red-300 text-sm"></div>
 
-        <div class="flex gap-3 pt-1">
+        <div class="flex gap-3">
           <button onclick="savePost(false)"
                   class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors font-medium">
             Add to Queue
@@ -306,7 +345,8 @@
   }
 
   // ── Dismiss cluster ──────────────────────────────────────────────
-  async function dismissCluster(btn, topic) {
+  async function dismissCluster(btn, idx) {
+    const topic = clusters[idx]?.topic || '';
     const card = btn.closest('.bg-gray-900, .bg-gray-900\\/50') || btn.closest('[class*="rounded-xl"]');
     // Walk up to the cluster card div
     let el = btn;
@@ -348,11 +388,11 @@
     activeClusterIdx = idx;
     const cluster = clusters[idx];
     document.getElementById('modal-topic').textContent = cluster.topic;
-    document.getElementById('modal-loading').classList.remove('hidden');
+    document.getElementById('modal-loading').classList.add('hidden');
+    document.getElementById('modal-variations').classList.add('hidden');
     document.getElementById('modal-content').classList.add('hidden');
-    document.getElementById('modal-error').classList.add('hidden');
+    document.getElementById('modal-error')?.classList.add('hidden');
     document.getElementById('create-modal').classList.remove('hidden');
-    generatePost(cluster);
   }
 
   function closeModal() {
@@ -360,34 +400,83 @@
     activeClusterIdx = null;
   }
 
-  // Close on backdrop click
   document.getElementById('create-modal')?.addEventListener('click', function(e) {
     if (e.target === this) closeModal();
   });
 
-  async function generatePost(cluster) {
+  function getToneValues() {
+    return {
+      tone_playful: parseInt(document.getElementById('slider-playful').value),
+      tone_energy:  parseInt(document.getElementById('slider-energy').value),
+      tone_casual:  parseInt(document.getElementById('slider-casual').value),
+    };
+  }
+
+  async function regenerate() {
+    if (activeClusterIdx === null) return;
+    document.getElementById('modal-loading').classList.remove('hidden');
+    document.getElementById('modal-variations').classList.add('hidden');
+    document.getElementById('modal-content').classList.add('hidden');
+    document.getElementById('modal-error')?.classList.add('hidden');
+
+    const cluster = clusters[activeClusterIdx];
     try {
       const res = await fetch('/trending/create-post', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(cluster),
+        body: JSON.stringify({...cluster, ...getToneValues()}),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      populateModal(data);
+      showVariations(data);
     } catch (e) {
-      showModalError('Failed to generate post: ' + e.message);
+      showModalError('Failed to generate: ' + e.message);
     }
   }
 
-  function populateModal(data) {
-    const caption = data.caption || '';
-    const hashtags = (data.hashtags || []).join(', ');
-    document.getElementById('modal-caption').value = caption;
-    document.getElementById('modal-hashtags').value = hashtags;
+  const TONE_LABELS = {
+    'casual':   { icon: '💬', color: 'border-blue-700 bg-blue-950/40' },
+    'hot take': { icon: '🔥', color: 'border-orange-700 bg-orange-950/40' },
+    'question': { icon: '🤔', color: 'border-purple-700 bg-purple-950/40' },
+  };
+
+  function showVariations(data) {
+    const variations = data.variations || [];
+    const container = document.getElementById('variation-cards');
+    container.innerHTML = '';
+
+    variations.forEach((v, i) => {
+      const meta = TONE_LABELS[v.tone] || { icon: '✏️', color: 'border-gray-700 bg-gray-800/40' };
+      const tags = (v.hashtags || []).map(t => '#' + t).join(' ');
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = `w-full text-left p-3 rounded-xl border ${meta.color} hover:brightness-110 transition-all`;
+      card.innerHTML = `
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="text-sm">${meta.icon}</span>
+          <span class="text-xs font-semibold text-gray-300 uppercase tracking-wide">${v.tone}</span>
+        </div>
+        <p class="text-gray-200 text-sm leading-snug">${escHtml(v.caption)}</p>
+        ${tags ? `<p class="text-indigo-400 text-xs mt-1.5">${escHtml(tags)}</p>` : ''}
+      `;
+      card.addEventListener('click', () => selectVariation(v));
+      container.appendChild(card);
+    });
+
+    document.getElementById('modal-loading').classList.add('hidden');
+    document.getElementById('modal-variations').classList.remove('hidden');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function selectVariation(v) {
+    document.getElementById('modal-caption').value = v.caption || '';
+    document.getElementById('modal-hashtags').value = (v.hashtags || []).join(', ');
     updateCharCount();
     updatePreview();
-    document.getElementById('modal-loading').classList.add('hidden');
+    document.getElementById('modal-variations').classList.add('hidden');
     document.getElementById('modal-content').classList.remove('hidden');
   }
 
@@ -395,7 +484,7 @@
     const len = (document.getElementById('modal-caption').value || '').length;
     const el = document.getElementById('char-count');
     el.textContent = `${len} / 240`;
-    el.className = 'text-xs ' + (len > 240 ? 'text-red-400' : 'text-gray-600');
+    el.className = 'text-xs ' + (len > 240 ? 'text-red-400' : len > 220 ? 'text-yellow-400' : 'text-gray-600');
     updatePreview();
   }
 
@@ -407,14 +496,6 @@
   }
 
   document.getElementById('modal-hashtags')?.addEventListener('input', updatePreview);
-
-  function regenerate() {
-    if (activeClusterIdx === null) return;
-    document.getElementById('modal-loading').classList.remove('hidden');
-    document.getElementById('modal-content').classList.add('hidden');
-    document.getElementById('modal-error').classList.add('hidden');
-    generatePost(clusters[activeClusterIdx]);
-  }
 
   async function savePost(postNow) {
     const caption = (document.getElementById('modal-caption').value || '').trim();
@@ -433,13 +514,8 @@
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-
       closeModal();
-      if (postNow) {
-        window.location.href = '/posts?filter=posted';
-      } else {
-        window.location.href = '/posts?filter=approved';
-      }
+      window.location.href = postNow ? '/posts?filter=posted' : '/posts?filter=approved';
     } catch (e) {
       showModalError('Error: ' + e.message);
       btns.forEach(b => b.disabled = false);
@@ -451,7 +527,6 @@
     el.textContent = msg;
     el.classList.remove('hidden');
     document.getElementById('modal-loading').classList.add('hidden');
-    document.getElementById('modal-content').classList.remove('hidden');
   }
 
   // Show spinner while refresh form submits

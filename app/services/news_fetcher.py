@@ -2,8 +2,10 @@
 News Fetcher — pulls headlines from NewsAPI and RSS feeds.
 Deduplicates by URL and stores new items in the database.
 """
+import html as html_lib
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -18,6 +20,18 @@ from app.models import AppLog, NewsItem
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+_HTML_TAG_RE = re.compile(r'<[^>]+>')
+
+def _clean_description(text: str) -> str:
+    """Strip HTML tags, decode entities, collapse whitespace."""
+    if not text:
+        return ""
+    text = _HTML_TAG_RE.sub(' ', text)
+    text = html_lib.unescape(text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 
 # RSS User-Agent (some feeds block the default feedparser UA)
 RSS_UA = "Mozilla/5.0 (compatible; ContentBot/1.0)"
@@ -88,7 +102,7 @@ def _save_item(db: Session, title: str, description: str, url: str,
         return False
     item = NewsItem(
         title=title[:500],
-        description=(description or "")[:2000],
+        description=_clean_description(description)[:2000],
         url=url[:1000],
         source=source,
         published_at=published_at,

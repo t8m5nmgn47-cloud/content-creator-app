@@ -101,45 +101,6 @@ def restore_dismissed(db: Session = Depends(get_db)):
 
 
 
-@router.get("/trending", response_class=HTMLResponse)
-def trending_page(request: Request, db: Session = Depends(get_db)):
-    from app.services.trend_analyzer import get_trending_snapshot
-    snapshot = get_trending_snapshot()
-
-    updated_at = None
-    if snapshot.get("updated_at"):
-        try:
-            updated_at = datetime.fromisoformat(snapshot["updated_at"])
-        except Exception:
-            pass
-
-    # Load all posts created from the trending board, newest first
-    trend_posts = (
-        db.query(Post)
-        .filter(Post.hook.like("trend:%"))
-        .order_by(Post.created_at.desc())
-        .limit(50)
-        .all()
-    )
-
-    # Build a set of topic slugs that have been posted about
-    posted_topics = set()
-    for p in trend_posts:
-        if p.hook and p.hook.startswith("trend:"):
-            posted_topics.add(p.hook[len("trend:"):].lower())
-
-    return templates.TemplateResponse("trending.html", {
-        "request": request,
-        "clusters": snapshot.get("clusters", []),
-        "updated_at": updated_at,
-        "reddit_posts_count": snapshot.get("reddit_posts_count", 0),
-        "headlines_count": snapshot.get("headlines_count", 0),
-        "has_data": bool(snapshot.get("clusters")),
-        "trend_posts": trend_posts,
-        "posted_topics": posted_topics,
-    })
-
-
 @router.post("/trending/refresh")
 def trending_refresh(request: Request):
     """Manually trigger a trend analysis refresh."""
@@ -163,13 +124,21 @@ async def create_post_from_trend(request: Request):
     summary = body.get("summary", "")
     hook = body.get("hook", "")
     best_angle = body.get("best_angle", "")
+    tone_playful = body.get("tone_playful", 3)
+    tone_energy = body.get("tone_energy", 3)
+    tone_casual = body.get("tone_casual", 3)
 
     if not topic:
         return JSONResponse({"error": "Missing topic"}, status_code=400)
 
     from app.services.claude_writer import generate_post_from_trend
     try:
-        result = generate_post_from_trend(topic, summary, hook, best_angle)
+        result = generate_post_from_trend(
+            topic, summary, hook, best_angle,
+            tone_playful=tone_playful,
+            tone_energy=tone_energy,
+            tone_casual=tone_casual,
+        )
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
