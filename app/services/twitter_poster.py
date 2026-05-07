@@ -4,8 +4,12 @@ Picks the next approved post from the queue and sends it.
 """
 import json
 import logging
+import os
+import tempfile
+import time
 from datetime import datetime
 
+import httpx
 import tweepy
 
 from app.config import get_settings
@@ -44,6 +48,58 @@ def _build_tweet_text(post: Post) -> str:
     return caption[:280]
 
 
+def _upload_video(video_url: str) -> str | None:
+    """Download a Runway video and upload it to Twitter. Returns media_id or None."""
+    temp_path = None
+    try:
+        with httpx.Client(timeout=120) as client:
+            r = client.get(video_url)
+            if r.status_code != 200:
+                logger.warning(f"Could not download video ({r.status_code}) — posting text-only")
+                return None
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+            f.write(r.content)
+            temp_path = f.name
+
+        auth = tweepy.OAuth1UserHandler(
+            settings.twitter_api_key,
+            settings.twitter_api_secret,
+            settings.twitter_access_token,
+            settings.twitter_access_secret,
+        )
+        api = tweepy.API(auth)
+        media = api.media_upload(
+            filename=temp_path,
+            media_category="tweet_video",
+            chunked=True,
+        )
+        media_id = media.media_id_string
+
+        # Wait for Twitter to finish processing the video
+        for _ in range(30):
+            status = api.get_media_upload_status(media_id)
+            info = getattr(status, "processing_info", None)
+            if not info:
+                break
+            state = info.get("state", "")
+            if state == "succeeded":
+                break
+            if state == "failed":
+                logger.error("Twitter video processing failed")
+                return None
+            time.sleep(10)
+
+        return media_id
+
+    except Exception as e:
+        logger.error(f"Video upload failed: {e}")
+        return None
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
 def post_tweet(post_id: int) -> bool:
     """
     Post a specific post (by DB id) to Twitter.
@@ -63,7 +119,16 @@ def post_tweet(post_id: int) -> bool:
         tweet_text = _build_tweet_text(post)
         client = _get_client()
 
-        response = client.create_tweet(text=tweet_text)
+        media_ids = None
+        if post.video_url:
+            logger.info(f"Uploading video for post {post_id}...")
+            media_id = _upload_video(post.video_url)
+            if media_id:
+                media_ids = [media_id]
+            else:
+                logger.info(f"Video upload failed — posting text-only for post {post_id}")
+
+        response = client.create_tweet(text=tweet_text, media_ids=media_ids)
         tweet_id = response.data["id"]
 
         post.status = "posted"

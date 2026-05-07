@@ -202,6 +202,64 @@ Respond with ONLY valid JSON:
     return json.loads(raw.strip())
 
 
+def generate_videos_for_queue():
+    """
+    Generate Runway videos for top approved posts (viral_score >= 8) that
+    don't have a video yet. Called by the scheduler 5 min after post generation.
+    """
+    if not settings.runway_api_key:
+        logger.info("RUNWAY_API_KEY not set — skipping video generation")
+        return 0
+
+    from app.services.runway_client import generate_video, build_video_prompt
+
+    db = SessionLocal()
+    try:
+        posts = (
+            db.query(Post)
+            .join(NewsItem, Post.news_item_id == NewsItem.id)
+            .filter(Post.status == "approved")
+            .filter(Post.video_url == "")
+            .filter(NewsItem.viral_score >= 8)
+            .order_by(NewsItem.viral_score.desc())
+            .limit(3)
+            .all()
+        )
+
+        if not posts:
+            logger.info("No high-score posts need video generation this cycle")
+            return 0
+
+        generated = 0
+        for post in posts:
+            item = db.query(NewsItem).filter(NewsItem.id == post.news_item_id).first()
+            if not item:
+                continue
+            prompt = build_video_prompt(item.title, item.description)
+            video_url = generate_video(prompt)
+            if video_url:
+                post.video_url = video_url
+                db.commit()
+                logger.info(f"Video ready for post {post.id}")
+                generated += 1
+            else:
+                logger.warning(f"Video generation failed for post {post.id}")
+
+        db.add(AppLog(
+            level="info",
+            job="runway",
+            message=f"Generated {generated} videos for queue",
+        ))
+        db.commit()
+        return generated
+
+    except Exception as e:
+        logger.error(f"generate_videos_for_queue failed: {e}")
+        return 0
+    finally:
+        db.close()
+
+
 def _next_schedule_slot(db) -> datetime:
     """
     Find the next available posting slot.
