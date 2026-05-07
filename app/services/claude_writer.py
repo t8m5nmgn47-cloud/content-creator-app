@@ -167,6 +167,56 @@ def generate_posts_for_queue():
         db.close()
 
 
+def generate_post_from_trend(topic: str, summary: str, hook: str, best_angle: str) -> dict:
+    """
+    Generate a Twitter post from a trending story cluster.
+    Returns the same shape as generate_twitter_post.
+    """
+    client = _get_client()
+
+    prompt = f"""You are an expert social media content creator. Generate a viral Twitter/X post based on this trending story.
+
+Topic: {topic}
+What's happening: {summary}
+Suggested angle: {best_angle}
+Suggested opening hook: {hook}
+
+Respond with ONLY valid JSON in this exact format:
+{{
+  "caption": "The tweet text (max 240 chars, punchy, conversational, no quotes)",
+  "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
+  "hook": "The opening line used",
+  "viral_score": 8,
+  "niche": "Technology"
+}}
+
+Rules:
+- Use the suggested angle — it should shape the whole post
+- Start with the hook or a variation of it
+- Max 240 characters for caption
+- 2–4 relevant hashtags (no # prefix)
+- Include 1–2 emojis
+- Write like a smart person, not a press release
+- Do NOT put hashtags inside the caption"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=500,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+
+    result = json.loads(raw)
+    result["hashtags"] = [h.lstrip("#") for h in result.get("hashtags", [])]
+    return result
+
+
 def suggest_niches() -> list[dict]:
     """
     Ask Claude Sonnet to suggest trending content niches based on current news.
