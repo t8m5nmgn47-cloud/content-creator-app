@@ -22,28 +22,36 @@ settings = get_settings()
 # RSS User-Agent (some feeds block the default feedparser UA)
 RSS_UA = "Mozilla/5.0 (compatible; ContentBot/1.0)"
 
-# Verified working RSS feeds (tested with httpx + feedparser)
+# Hard news sources only — no gadget blogs or deal sites
 RSS_FEEDS = [
-    # General News
-    ("CNN",                 "http://rss.cnn.com/rss/cnn_topstories.rss"),
+    # Wire services & broadcast
+    ("Reuters World",       "https://feeds.reuters.com/reuters/worldNews"),
+    ("Reuters Business",    "https://feeds.reuters.com/reuters/businessNews"),
+    ("AP Top News",         "https://rsshub.app/apnews/topics/apf-topnews"),
     ("NPR Top Stories",     "https://feeds.npr.org/1001/rss.xml"),
-    ("CBS News",            "https://www.cbsnews.com/latest/rss/main"),
+    ("BBC World",           "https://feeds.bbci.co.uk/news/world/rss.xml"),
+    ("BBC Technology",      "https://feeds.bbci.co.uk/news/technology/rss.xml"),
+    # Newspapers
     ("NY Times World",      "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"),
-    ("The Guardian World",  "https://www.theguardian.com/world/rss"),
-    # Business & Finance
-    ("CNBC Top News",       "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"),
     ("NY Times Business",   "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"),
-    ("The Guardian Business","https://www.theguardian.com/business/rss"),
-    # Technology
-    ("Ars Technica",        "http://feeds.arstechnica.com/arstechnica/index"),
-    ("TechCrunch",          "https://techcrunch.com/feed/"),
-    ("Engadget",            "https://www.engadget.com/rss.xml"),
-    ("CNBC Tech",           "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910"),
     ("NY Times Tech",       "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml"),
+    ("The Guardian World",  "https://www.theguardian.com/world/rss"),
     ("The Guardian Tech",   "https://www.theguardian.com/technology/rss"),
-    ("9to5Mac",             "https://9to5mac.com/feed/"),
-    ("9to5Google",          "https://9to5google.com/feed/"),
+    # Tech — analysis, not deals
+    ("Ars Technica",        "http://feeds.arstechnica.com/arstechnica/index"),
+    ("MIT Tech Review",     "https://www.technologyreview.com/feed/"),
     ("Hacker News",         "https://hnrss.org/frontpage"),
+    # Finance
+    ("CNBC Top News",       "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"),
+]
+
+# Keywords that indicate ad/deal/product content — skip these stories
+AD_KEYWORDS = [
+    "deal", "deals", "sale", "discount", "off", "price drop", "lowest price",
+    "best buy", "amazon", "coupon", "promo", "offer", "limited time",
+    "buy now", "in stock", "out of stock", "restock", "charger", "accessory",
+    "accessories", "review:", "hands-on", "unboxing", "vs.", " vs ",
+    "best ", "top 10", "top 5", "ranked", "buying guide",
 ]
 
 # NewsAPI categories to pull from
@@ -66,6 +74,9 @@ def _save_item(db: Session, title: str, description: str, url: str,
                source: str, published_at: Optional[datetime]) -> bool:
     """Save a news item if not already in the DB. Returns True if new."""
     if not title or not url:
+        return False
+    title_lower = title.lower()
+    if any(kw in title_lower for kw in AD_KEYWORDS):
         return False
     existing = db.query(NewsItem).filter(NewsItem.url == url).first()
     if existing:
