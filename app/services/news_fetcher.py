@@ -78,6 +78,11 @@ def _save_item(db: Session, title: str, description: str, url: str,
     title_lower = title.lower()
     if any(kw in title_lower for kw in AD_KEYWORDS):
         return False
+    # Topic blocklist — user-configurable via Settings
+    from app.services.content_filter import get_blocked_categories, is_blocked
+    blocked = get_blocked_categories(db)
+    if blocked and is_blocked(title, blocked):
+        return False
     existing = db.query(NewsItem).filter(NewsItem.url == url).first()
     if existing:
         return False

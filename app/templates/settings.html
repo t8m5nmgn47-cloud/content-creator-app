@@ -108,5 +108,49 @@
 
   </form>
 
+  <!-- Content Filters — separate form so checkboxes work correctly -->
+  <form action="/settings/filters" method="POST" class="mt-6">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <div class="flex items-start justify-between mb-5">
+        <div>
+          <h2 class="font-semibold text-white">Content Filters</h2>
+          <p class="text-gray-400 text-xs mt-1">
+            Checked topics are blocked — no stories, posts, or trending entries will be created for them
+          </p>
+        </div>
+        <button type="submit"
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors flex-shrink-0">
+          Save Filters
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        {% for cat_name, cat in topic_categories.items() %}
+        <label class="flex items-start gap-3 p-3 rounded-lg cursor-pointer
+                      {% if cat_name in blocked_categories %}bg-red-950/50 border border-red-900/60{% else %}bg-gray-800/60 border border-transparent hover:border-gray-700{% endif %}
+                      transition-colors">
+          <input type="checkbox" name="blocked_categories" value="{{ cat_name }}"
+                 {% if cat_name in blocked_categories %}checked{% endif %}
+                 class="mt-0.5 w-4 h-4 accent-red-500 flex-shrink-0 cursor-pointer">
+          <div>
+            <p class="text-sm font-medium {% if cat_name in blocked_categories %}text-red-300{% else %}text-white{% endif %}">
+              {{ cat_name }}
+            </p>
+            <p class="text-xs text-gray-500 mt-0.5 leading-snug">{{ cat.description }}</p>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+
+      {% if blocked_categories %}
+      <p class="mt-4 text-xs text-red-400">
+        🚫 Currently blocking: {{ blocked_categories | join(', ') }}
+      </p>
+      {% else %}
+      <p class="mt-4 text-xs text-gray-600">No topics blocked — all content is allowed</p>
+      {% endif %}
+    </div>
+  </form>
+
 </div>
 {% endblock %}

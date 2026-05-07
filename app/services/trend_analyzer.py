@@ -166,6 +166,15 @@ def refresh_trending_snapshot() -> dict:
 
         clusters = _ask_claude_for_trends(reddit_posts, headlines)
 
+        # Strip out clusters that match the user's topic blocklist
+        from app.services.content_filter import get_blocked_categories, is_blocked
+        blocked = get_blocked_categories(db)
+        if blocked:
+            clusters = [
+                c for c in clusters
+                if not is_blocked(c.get("topic", "") + " " + c.get("summary", ""), blocked)
+            ]
+
         snapshot = {
             "updated_at": datetime.utcnow().isoformat(),
             "reddit_posts_count": len(reddit_posts),
