@@ -69,6 +69,15 @@ def setup_jobs():
             name=f"Twitter Post {i+1}/8 ({hour:02d}:{minute:02d})",
         )
 
+    # ── Trending analysis — every 30 min ──────────────────────────
+    scheduler.add_job(
+        _refresh_trending_job,
+        CronTrigger(minute="*/30", timezone=tz),
+        id="refresh_trending",
+        replace_existing=True,
+        name="Refresh Trending Snapshot",
+    )
+
     # ── Maintenance ────────────────────────────────────────────────
     scheduler.add_job(
         _cleanup_logs_job,
@@ -113,6 +122,14 @@ def _generate_videos_job():
         generate_videos_for_queue()
     except Exception as e:
         logger.error(f"generate_videos_job error: {e}")
+
+
+def _refresh_trending_job():
+    try:
+        from app.services.trend_analyzer import refresh_trending_snapshot
+        refresh_trending_snapshot()
+    except Exception as e:
+        logger.error(f"refresh_trending_job error: {e}")
 
 
 def _cleanup_logs_job():

@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.database import Base, engine
 from app import models  # noqa: F401 — ensures models are registered
 from app.scheduler import scheduler, setup_jobs
-from app.routes import dashboard, posts, niches, news, settings, api
+from app.routes import dashboard, posts, niches, news, settings, api, trending
 
 # Configure logging
 logging.basicConfig(
@@ -62,6 +62,7 @@ app.include_router(posts.router)
 app.include_router(niches.router)
 app.include_router(news.router)
 app.include_router(settings.router)
+app.include_router(trending.router)
 app.include_router(api.router, prefix="/api")
 
 

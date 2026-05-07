@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Trending — Content Creator{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-white">Trending Now</h1>
+      <p class="text-gray-400 text-sm mt-1">
+        Story patterns from Reddit + wire services — refreshed every 30 min
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      {% if updated_at %}
+      <span class="text-xs text-gray-500" id="refresh-age">
+        Last updated {{ updated_at.strftime('%I:%M %p') }}
+      </span>
+      {% endif %}
+      <form action="/trending/refresh" method="POST">
+        <button id="refresh-btn" type="submit"
+                class="px-4 py-2 bg-indigo-700 hover:bg-indigo-600 text-sm text-white rounded-lg transition-colors flex items-center gap-2">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Refresh Now
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Data sources pill row -->
+  {% if has_data %}
+  <div class="flex items-center gap-3 mb-6 text-xs text-gray-500">
+    <span class="bg-gray-800 px-2.5 py-1 rounded-full">
+      {{ reddit_posts_count }} Reddit posts scanned
+    </span>
+    <span class="bg-gray-800 px-2.5 py-1 rounded-full">
+      {{ headlines_count }} wire headlines
+    </span>
+    <span class="bg-gray-800 px-2.5 py-1 rounded-full">
+      {{ clusters|length }} story clusters found
+    </span>
+  </div>
+  {% endif %}
+
+  {% if not has_data %}
+  <!-- Empty state -->
+  <div class="bg-gray-900 border border-gray-800 rounded-xl p-16 text-center">
+    <div class="text-4xl mb-4">📡</div>
+    <h2 class="text-white font-semibold text-lg mb-2">No data yet</h2>
+    <p class="text-gray-400 text-sm mb-6 max-w-sm mx-auto">
+      Hit "Refresh Now" to run the first analysis. It takes about 15 seconds —
+      Claude scans Reddit and your news feed to find what's gaining momentum.
+    </p>
+    <form action="/trending/refresh" method="POST">
+      <button type="submit"
+              class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg transition-colors">
+        Run First Analysis
+      </button>
+    </form>
+  </div>
+
+  {% else %}
+  <!-- Trend cluster cards -->
+  <div class="space-y-4">
+    {% for cluster in clusters %}
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+
+      <!-- Top row: topic + momentum badge -->
+      <div class="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <!-- Momentum color bar -->
+            {% set m = cluster.momentum %}
+            {% if m >= 8 %}
+            <span class="inline-block w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
+            {% elif m >= 6 %}
+            <span class="inline-block w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0"></span>
+            {% else %}
+            <span class="inline-block w-2 h-2 rounded-full bg-blue-400 flex-shrink-0"></span>
+            {% endif %}
+            <h2 class="text-white font-semibold text-base">{{ cluster.topic }}</h2>
+          </div>
+          <p class="text-gray-300 text-sm leading-snug">{{ cluster.summary }}</p>
+        </div>
+        <div class="flex-shrink-0 text-right">
+          <div class="text-lg font-bold
+            {% if cluster.momentum >= 8 %}text-red-400
+            {% elif cluster.momentum >= 6 %}text-yellow-400
+            {% else %}text-blue-400{% endif %}">
+            {{ cluster.momentum }}/10
+          </div>
+          <div class="text-xs text-gray-500">momentum</div>
+        </div>
+      </div>
+
+      <!-- Body: why trending + best angle -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="bg-gray-800/60 rounded-lg p-3">
+          <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Why It's Moving</div>
+          <p class="text-gray-300 text-sm leading-snug">{{ cluster.why_trending }}</p>
+        </div>
+        <div class="bg-indigo-950/60 border border-indigo-900/50 rounded-lg p-3">
+          <div class="text-xs text-indigo-400 uppercase tracking-wide mb-1">Best Angle</div>
+          <p class="text-indigo-200 text-sm leading-snug">{{ cluster.best_angle }}</p>
+        </div>
+      </div>
+
+      <!-- Hook + use button -->
+      <div class="flex items-center gap-3 bg-gray-800/40 rounded-lg px-4 py-3">
+        <svg class="w-4 h-4 text-yellow-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        <p class="text-yellow-200 text-sm flex-1 italic">"{{ cluster.hook }}"</p>
+        <button onclick="copyHook(this, {{ loop.index0 }})"
+                class="flex-shrink-0 px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition-colors">
+          Copy hook
+        </button>
+      </div>
+
+      <!-- Sources -->
+      {% if cluster.sources %}
+      <div class="mt-3 flex flex-wrap gap-1.5">
+        {% for src in cluster.sources %}
+        <span class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded">{{ src }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  // Store hooks for copy buttons
+  const hooks = [
+    {% for cluster in clusters %}
+    {{ cluster.hook | tojson }}{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function copyHook(btn, idx) {
+    const text = hooks[idx] || '';
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.classList.add('bg-green-800', 'text-green-300');
+      setTimeout(() => {
+        btn.textContent = orig;
+        btn.classList.remove('bg-green-800', 'text-green-300');
+      }, 1500);
+    });
+  }
+
+  // Show spinner while refresh form submits
+  document.querySelector('form[action="/trending/refresh"]')?.addEventListener('submit', () => {
+    const btn = document.getElementById('refresh-btn');
+    if (btn) btn.textContent = '⏳ Analyzing...';
+  });
+
+  // Auto-refresh countdown in the "Last updated" label
+  {% if updated_at %}
+  (function() {
+    const updatedMs = new Date('{{ updated_at.isoformat() }}Z').getTime();
+    const refreshIntervalMs = 30 * 60 * 1000;
+    const el = document.getElementById('refresh-age');
+    if (!el) return;
+    function tick() {
+      const age = Math.floor((Date.now() - updatedMs) / 60000);
+      const nextIn = Math.max(0, 30 - age);
+      el.textContent = age < 1
+        ? 'Updated just now'
+        : `Updated ${age}m ago · next refresh in ${nextIn}m`;
+    }
+    tick();
+    setInterval(tick, 30000);
+  })();
+  {% endif %}
+</script>
+{% endblock %}
