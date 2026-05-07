@@ -39,6 +39,15 @@ def setup_jobs():
         name="Generate Posts (Claude)",
     )
 
+    # Generate videos 5 min after post generation (for viral_score >= 8 posts)
+    scheduler.add_job(
+        _generate_videos_job,
+        CronTrigger(hour="0,3,6,9,12,15,18,21", minute=35, timezone=tz),
+        id="generate_videos",
+        replace_existing=True,
+        name="Generate Videos (Runway)",
+    )
+
     # ── Twitter Posting — 8x/day at peak hours (Central Time) ──────
     posting_times = [
         (7, 0),   # 7:00 AM — morning
@@ -96,6 +105,14 @@ def _post_twitter_job():
         post_next_in_queue()
     except Exception as e:
         logger.error(f"post_twitter_job error: {e}")
+
+
+def _generate_videos_job():
+    try:
+        from app.services.claude_writer import generate_videos_for_queue
+        generate_videos_for_queue()
+    except Exception as e:
+        logger.error(f"generate_videos_job error: {e}")
 
 
 def _cleanup_logs_job():

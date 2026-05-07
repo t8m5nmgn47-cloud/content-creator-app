@@ -203,13 +203,14 @@ def _generate_video_task(item_id: int):
         video_url = generate_video(prompt)
 
         if not video_url:
-            post.status = "failed"
-            post.error_message = "Runway video generation failed — check logs"
-            db.add(AppLog(level="error", job="runway", message=f"Video generation failed for item {item_id}"))
-            db.commit()
-            return
+            if not settings.runway_api_key:
+                logger.info(f"No Runway key — generating text-only post for item {item_id}")
+            else:
+                db.add(AppLog(level="error", job="runway", message=f"Video generation failed for item {item_id}"))
 
-        # ── Generate caption and finalize the post ─────────────────────────
+        # ── Generate caption (with or without video) ───────────────────────
+
+        # ── Generate caption and finalize the post (video optional) ───────
         caption_result = generate_twitter_post(item.title, item.description)
         final_status = "approved" if settings.auto_approve_posts else "pending"
         scheduled = _next_schedule_slot(db)
