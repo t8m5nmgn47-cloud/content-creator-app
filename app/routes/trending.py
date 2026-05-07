@@ -124,13 +124,21 @@ async def create_post_from_trend(request: Request):
     summary = body.get("summary", "")
     hook = body.get("hook", "")
     best_angle = body.get("best_angle", "")
+    tone_playful = body.get("tone_playful", 3)
+    tone_energy = body.get("tone_energy", 3)
+    tone_casual = body.get("tone_casual", 3)
 
     if not topic:
         return JSONResponse({"error": "Missing topic"}, status_code=400)
 
     from app.services.claude_writer import generate_post_from_trend
     try:
-        result = generate_post_from_trend(topic, summary, hook, best_angle)
+        result = generate_post_from_trend(
+            topic, summary, hook, best_angle,
+            tone_playful=tone_playful,
+            tone_energy=tone_energy,
+            tone_casual=tone_casual,
+        )
         return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)

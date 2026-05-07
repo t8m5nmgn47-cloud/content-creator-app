@@ -27,31 +27,31 @@ def generate_twitter_post(title: str, description: str = "") -> dict:
     """
     client = _get_client()
 
-    prompt = f"""You are an expert social media content creator. Given this news headline, create an engaging Twitter/X post.
+    prompt = f"""You're a person who follows the news closely and loves sharing takes on Twitter. Write a tweet about this story.
 
 Headline: {title}
-Description: {description[:300] if description else 'N/A'}
+Details: {description[:300] if description else 'N/A'}
 
-Respond with ONLY valid JSON in this exact format:
+Respond with ONLY valid JSON:
 {{
-  "caption": "The tweet text (max 240 chars, punchy, no filler, conversational tone, no quotes around it)",
-  "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
-  "hook": "A one-line attention-grabbing opening sentence",
+  "caption": "your tweet here",
+  "hashtags": ["hashtag1", "hashtag2"],
+  "hook": "the opening line",
   "viral_score": 7,
   "niche": "Technology"
 }}
 
-Rules for the caption:
-- Max 240 characters
-- Start with the hook — grab attention immediately
-- Be direct, punchy, conversational
-- Include 1-2 relevant emojis
-- Do NOT include the hashtags in the caption text (they are separate)
-- Do NOT use quotation marks around the caption
-- Write like a real person, not a press release
+How to write the tweet:
+- Sound like a real person reacting to the news, not a brand account
+- It's okay to have an opinion, be a little surprised, or ask a question
+- Casual grammar is fine — short punchy sentences, fragments, ellipses if it feels right
+- 1-2 emojis max, only if they actually add something
+- Max 240 chars
+- No hashtags inside the caption (keep them separate)
+- Avoid: "breaking", "just announced", "game-changing", "revolutionary", corporate speak
 
-The viral_score is 1-10 based on how likely this topic is to get engagement on Twitter right now.
-The niche is one of: Technology, Business, Entertainment, Health, Science, Politics, Sports, Finance, AI, Other"""
+viral_score: 1-10 based on how likely this gets engagement right now
+niche: Technology, Business, Entertainment, Health, Science, Politics, Sports, Finance, AI, or Other"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
@@ -165,6 +165,98 @@ def generate_posts_for_queue():
         return 0
     finally:
         db.close()
+
+
+def generate_post_from_trend(
+    topic: str,
+    summary: str,
+    hook: str,
+    best_angle: str,
+    tone_playful: int = 3,
+    tone_energy: int = 3,
+    tone_casual: int = 3,
+) -> dict:
+    """
+    Generate 3 Twitter post variations from a trending story cluster.
+    Tone sliders are 1-5: playful (1=serious, 5=playful), energy (1=calm, 5=fired up),
+    casual (1=formal, 5=very casual).
+    Returns {"variations": [{caption, hashtags, tone}, ...], "viral_score", "niche"}
+    """
+    client = _get_client()
+
+    tone_playful = max(1, min(5, int(tone_playful)))
+    tone_energy = max(1, min(5, int(tone_energy)))
+    tone_casual = max(1, min(5, int(tone_casual)))
+
+    playful_desc = ["very serious and factual", "mostly serious", "balanced", "somewhat playful and fun", "very playful and witty"][tone_playful - 1]
+    energy_desc = ["very calm and measured", "low-key", "moderate energy", "energetic and enthusiastic", "fired up and intense"][tone_energy - 1]
+    casual_desc = ["formal, proper grammar", "mostly formal", "conversational", "casual and relaxed", "very casual — fragments, lowercase fine, ellipses ok"][tone_casual - 1]
+
+    prompt = f"""You follow the news and like sharing takes on Twitter. Write 3 different tweets about this trending story — each with a different style but all matching the same tone settings.
+
+Topic: {topic}
+What's happening: {summary}
+Angle to use: {best_angle}
+Suggested hook: {hook}
+
+Tone settings (apply to ALL 3 variations):
+- Mood: {playful_desc}
+- Energy: {energy_desc}
+- Style: {casual_desc}
+
+Write 3 variations with these 3 different approaches:
+1. "casual" — feels off-the-cuff, like sharing with a friend
+2. "hot take" — has a clear opinion or point of view, a bit provocative but not mean
+3. "question" — pulls people in with a question or surprising framing
+
+Respond with ONLY valid JSON:
+{{
+  "variations": [
+    {{
+      "tone": "casual",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "hot take",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "question",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }}
+  ],
+  "viral_score": 8,
+  "niche": "Technology"
+}}
+
+Rules for all 3:
+- Apply the tone settings above consistently across all variations
+- Sound like a real person, not a brand account
+- Max 240 chars per caption
+- 1–3 hashtags (no # prefix), kept separate from caption text
+- 0–2 emojis only if they genuinely fit the mood
+- No corporate buzzwords ("game-changing", "revolutionary", "excited to announce")"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=900,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+
+    result = json.loads(raw)
+    for v in result.get("variations", []):
+        v["hashtags"] = [h.lstrip("#") for h in v.get("hashtags", [])]
+    return result
 
 
 def suggest_niches() -> list[dict]:
