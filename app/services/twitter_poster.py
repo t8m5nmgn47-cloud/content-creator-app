@@ -50,6 +50,7 @@ def post_tweet(post_id: int) -> bool:
     Returns True on success, False on failure.
     """
     db = SessionLocal()
+    post = None
     try:
         post = db.query(Post).filter(Post.id == post_id).first()
         if not post:
@@ -143,7 +144,6 @@ def post_next_in_queue() -> bool:
             db.commit()
             return False
 
-        db.close()
         return post_tweet(post.id)
 
     except Exception as e:
