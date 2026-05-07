@@ -31,6 +31,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     total_posted = db.query(Post).filter(Post.status == "posted").count()
     total_failed = db.query(Post).filter(Post.status == "failed").count()
+    # skipped posts are intentional — exclude from success rate
     success_rate = round(total_posted / (total_posted + total_failed) * 100) if (total_posted + total_failed) > 0 else 100
 
     # Post queue (next 10 scheduled)

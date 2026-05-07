@@ -32,6 +32,8 @@ def posts_page(
         query = query.filter(Post.status == "posted")
     elif filter == "failed":
         query = query.filter(Post.status == "failed")
+    elif filter == "skipped":
+        query = query.filter(Post.status == "skipped")
 
     if search:
         query = query.filter(Post.caption.ilike(f"%{search}%"))
@@ -64,8 +66,8 @@ def approve_post(post_id: int, db: Session = Depends(get_db)):
 def skip_post(post_id: int, db: Session = Depends(get_db)):
     post = db.query(Post).filter(Post.id == post_id).first()
     if post:
-        post.status = "failed"
-        post.error_message = "Manually skipped"
+        post.status = "skipped"
+        post.error_message = ""
         db.commit()
     return RedirectResponse(url="/posts", status_code=303)
 

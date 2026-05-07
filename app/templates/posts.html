@@ -29,7 +29,7 @@
 
   <!-- Filter tabs -->
   <div class="flex gap-2 mb-6 flex-wrap">
-    {% for tab, label in [('all','All'), ('processing','⏳ Processing'), ('approved','Approved'), ('pending','Pending'), ('posted','Posted'), ('failed','Failed')] %}
+    {% for tab, label in [('all','All'), ('processing','⏳ Processing'), ('approved','Approved'), ('pending','Pending'), ('posted','Posted'), ('skipped','Skipped'), ('failed','Failed')] %}
     <a href="/posts?filter={{ tab }}{% if search %}&search={{ search }}{% endif %}" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors {% if filter == tab %}bg-indigo-600 text-white{% else %}bg-gray-800 text-gray-400 hover:text-white{% endif %}">
       {{ label }}
     </a>
@@ -89,6 +89,7 @@
                 {% if post.status == 'posted' %}bg-green-900 text-green-300
                 {% elif post.status == 'approved' %}bg-blue-900 text-blue-300
                 {% elif post.status == 'pending' %}bg-yellow-900 text-yellow-300
+                {% elif post.status == 'skipped' %}bg-gray-800 text-gray-500
                 {% else %}bg-red-900 text-red-300{% endif %}">
                 {{ post.status }}
               </span>
@@ -127,9 +128,9 @@
                 <button class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-400 text-xs rounded transition-colors">Skip</button>
               </form>
               {% endif %}
-              {% if post.status == 'failed' %}
+              {% if post.status in ['failed', 'skipped'] %}
               <form action="/posts/{{ post.id }}/retry" method="POST">
-                <button class="px-2 py-1 bg-blue-800 hover:bg-blue-700 text-blue-300 text-xs rounded transition-colors">Retry</button>
+                <button class="px-2 py-1 bg-blue-800 hover:bg-blue-700 text-blue-300 text-xs rounded transition-colors">Restore</button>
               </form>
               {% endif %}
             </div>
