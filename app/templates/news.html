@@ -39,7 +39,7 @@
       <div class="flex items-start gap-4">
 
         <!-- Viral score badge -->
-        <div class="shrink-0 mt-1">
+        <div class="shrink-0 mt-1" title="{% if item.viral_score > 0 %}Viral score: {{ item.viral_score|round(0)|int }}/10{% else %}Not yet scored — run Generate Now to score{% endif %}">
           {% if item.viral_score > 0 %}
           <div class="w-10 h-10 rounded-lg flex flex-col items-center justify-center
             {% if item.viral_score >= 7 %}bg-green-900 border border-green-700
@@ -48,11 +48,11 @@
             <span class="text-xs font-bold {% if item.viral_score >= 7 %}text-green-300{% elif item.viral_score >= 5 %}text-yellow-300{% else %}text-gray-400{% endif %}">
               {{ item.viral_score|round(0)|int }}
             </span>
-            <span class="text-gray-500" style="font-size:9px">score</span>
+            <span class="{% if item.viral_score >= 7 %}text-green-600{% elif item.viral_score >= 5 %}text-yellow-600{% else %}text-gray-500{% endif %}" style="font-size:9px">score</span>
           </div>
           {% else %}
-          <div class="w-10 h-10 rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center">
-            <span class="text-gray-600 text-lg">—</span>
+          <div class="w-10 h-10 rounded-lg bg-gray-800/50 border border-gray-700/50 flex flex-col items-center justify-center gap-0.5">
+            <span class="text-gray-600 text-xs font-medium">new</span>
           </div>
           {% endif %}
         </div>
