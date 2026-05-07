@@ -13,7 +13,7 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/trending", response_class=HTMLResponse)
-def trending_page(request: Request):
+def trending_page(request: Request, db: Session = Depends(get_db)):
     from app.services.trend_analyzer import get_trending_snapshot
     snapshot = get_trending_snapshot()
 
@@ -24,6 +24,21 @@ def trending_page(request: Request):
         except Exception:
             pass
 
+    # Load all posts created from the trending board, newest first
+    trend_posts = (
+        db.query(Post)
+        .filter(Post.hook.like("trend:%"))
+        .order_by(Post.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    # Build a set of topic slugs that have been posted about
+    posted_topics = set()
+    for p in trend_posts:
+        if p.hook and p.hook.startswith("trend:"):
+            posted_topics.add(p.hook[len("trend:"):].lower())
+
     return templates.TemplateResponse("trending.html", {
         "request": request,
         "clusters": snapshot.get("clusters", []),
@@ -31,6 +46,8 @@ def trending_page(request: Request):
         "reddit_posts_count": snapshot.get("reddit_posts_count", 0),
         "headlines_count": snapshot.get("headlines_count", 0),
         "has_data": bool(snapshot.get("clusters")),
+        "trend_posts": trend_posts,
+        "posted_topics": posted_topics,
     })
 
 
@@ -89,12 +106,14 @@ async def save_post_from_trend(request: Request, db: Session = Depends(get_db)):
 
     scheduled = datetime.utcnow() + timedelta(minutes=5) if post_now else _next_schedule_slot(db)
 
+    topic = (body.get("topic") or "").strip()
+
     post = Post(
         news_item_id=None,
         platform="twitter",
         caption=caption,
         hashtags=hashtags,
-        hook="",
+        hook=f"trend:{topic}" if topic else "trend",
         status="approved",
         scheduled_for=scheduled,
     )
