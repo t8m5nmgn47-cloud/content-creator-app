@@ -27,7 +27,7 @@ def generate_twitter_post(title: str, description: str = "") -> dict:
     """
     client = _get_client()
 
-    prompt = f"""You're a funny, sharp person on Twitter who loves finding the absurd or unexpected angle on a news story. Write a tweet that makes people laugh or smirk — not a "gotcha" or a lecture, just genuinely funny.
+    prompt = f"""You are a comedian writing tweets. Your job is to make people actually laugh out loud, not just nod. Think: absurdist Twitter, shitposting with brains, the kind of tweet that gets screenshot and shared.
 
 Headline: {title}
 Details: {description[:300] if description else 'N/A'}
@@ -41,17 +41,23 @@ Respond with ONLY valid JSON:
   "niche": "Technology"
 }}
 
-How to write it:
-- Find the funny angle — the absurdity, the irony, the unexpected comparison, the thing everyone's thinking but hasn't said yet
-- Punchline structure works great: setup in line 1, payoff in line 2
-- Dry wit, self-aware humor, or mild roasting of the situation (never mean to people)
-- Casual — fragments, lowercase, ellipses all fine if they help the rhythm
-- Avoid snarky "gotcha" takes, moralizing, or obvious observations like "looks like X didn't deliver"
-- 1-2 emojis max, only if they land the joke better
-- Max 240 chars
-- No hashtags inside the caption
+Comedy styles to draw from (pick whichever fits):
+- Absurdist comparison: relate the story to something completely unrelated in a way that somehow makes perfect sense
+- Exaggerated reaction: treat a minor news story like it's the most dramatic thing ever, or a huge story like it's totally mundane
+- Unexpected pivot: start like a normal take then go somewhere nobody expected
+- The obvious thing nobody said: name the elephant in the room in the funniest way possible
+- Self-aware: joke about the fact that this is even news
+- Callback humor: reference something from pop culture that perfectly mirrors the situation
 
-viral_score: 1-10 based on how likely this gets engagement right now
+Rules:
+- Actually funny > technically accurate. Lean into the joke.
+- Short punchy sentences. Lowercase fine. Ellipses for comedic timing...
+- Emojis only if they're part of the joke (💀 🫠 😭 work great for comedy)
+- Max 240 chars
+- No hashtags in the caption
+- Never punch at real people — roast the situation, the company, the irony, never individuals
+
+viral_score: 1-10 engagement likelihood
 niche: Technology, Business, Entertainment, Health, Science, Politics, Sports, Finance, AI, or Other"""
 
     message = client.messages.create(
@@ -193,7 +199,7 @@ def generate_post_from_trend(
     energy_desc = ["very calm and measured", "low-key", "moderate energy", "energetic and enthusiastic", "fired up and intense"][tone_energy - 1]
     casual_desc = ["formal, proper grammar", "mostly formal", "conversational", "casual and relaxed", "very casual — fragments, lowercase fine, ellipses ok"][tone_casual - 1]
 
-    prompt = f"""You follow the news and like sharing takes on Twitter. Write 3 different tweets about this trending story — each with a different style but all matching the same tone settings.
+    prompt = f"""You are a comedian writing tweets about trending news. Make people actually laugh. Think absurdist Twitter, dry wit, unexpected angles — the kind of tweet that gets screenshot and shared.
 
 Topic: {topic}
 What's happening: {summary}
@@ -205,10 +211,10 @@ Tone settings (apply to ALL 3 variations):
 - Energy: {energy_desc}
 - Style: {casual_desc}
 
-Write 3 variations with these 3 different approaches:
-1. "casual" — feels off-the-cuff, like sharing with a friend
-2. "hot take" — has a clear opinion or point of view, a bit provocative but not mean
-3. "question" — pulls people in with a question or surprising framing
+Write 3 variations, each using a different comedy style:
+1. "casual" — absurdist or deadpan, like texting a friend the most ridiculous take on this story
+2. "hot take" — exaggerated reaction, treat this like the most dramatic or most mundane thing ever (whichever is funnier), strong opinion
+3. "question" — start with a weird angle or observation that makes people go "wait... yeah actually" before they laugh
 
 Respond with ONLY valid JSON:
 {{
@@ -234,12 +240,12 @@ Respond with ONLY valid JSON:
 }}
 
 Rules for all 3:
-- Apply the tone settings above consistently across all variations
-- Sound like a real person, not a brand account
-- Max 240 chars per caption
-- 1–3 hashtags (no # prefix), kept separate from caption text
-- 0–2 emojis only if they genuinely fit the mood
-- No corporate buzzwords ("game-changing", "revolutionary", "excited to announce")"""
+- Actually funny > technically accurate. Commit to the joke.
+- Apply the tone settings — they shape HOW funny, not whether to be funny
+- Lowercase, fragments, ellipses all fine if they help the comedic timing
+- Emojis only if they're part of the joke (💀 🫠 😭 are comedy gold)
+- Max 240 chars per caption, no hashtags inside caption
+- Roast the situation/irony, never punch at real individuals"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
