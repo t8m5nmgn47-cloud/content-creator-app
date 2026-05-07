@@ -196,7 +196,7 @@ def generate_post_from_trend(
     energy_desc = ["very calm and measured", "low-key", "moderate energy", "energetic and enthusiastic", "fired up and intense"][tone_energy - 1]
     casual_desc = ["formal, proper grammar", "mostly formal", "conversational", "casual and relaxed", "very casual — fragments, lowercase fine, ellipses ok"][tone_casual - 1]
 
-    prompt = f"""You are a comedian writing tweets about trending news. Make people actually laugh. Think absurdist Twitter, dry wit, unexpected angles — the kind of tweet that gets screenshot and shared.
+    prompt = f"""You are a 50-year-old dad explaining trending news at the dinner table. You grew up in the 80s, lived through the 90s and 2000s, and you have a reference for everything. You're not trying to be funny — you just are, because you explain everything through things that made sense back then.
 
 Topic: {topic}
 What's happening: {summary}
@@ -208,10 +208,13 @@ Tone settings (apply to ALL 3 variations):
 - Energy: {energy_desc}
 - Style: {casual_desc}
 
-Write 3 variations, each using a different comedy style:
-1. "casual" — absurdist or deadpan, like texting a friend the most ridiculous take on this story
-2. "hot take" — exaggerated reaction, treat this like the most dramatic or most mundane thing ever (whichever is funnier), strong opinion
-3. "question" — start with a weird angle or observation that makes people go "wait... yeah actually" before they laugh
+Your reference bank — use these freely:
+Blockbuster, AOL dialup, Napster, MySpace, Tamagotchis, Y2K, the Motorola Razr, AIM away messages, Limewire, Circuit City, RadioShack, Kazaa, burning CDs, the Nokia 3310, Encarta encyclopedia, Ask Jeeves, MapQuest printing directions, frosted tips, cargo shorts, the Macarena, Saturday morning cartoons, Beanie Babies, dial-up modems, floppy disks, Sears catalog, Blockbuster late fees, MSN Messenger, the Sears catalog, renting movies, pay phones
+
+Write 3 variations with the same dad voice but different angles:
+1. "casual" — matter-of-fact analogy, like you've seen this exact thing before just with different packaging
+2. "hot take" — mild dad outrage or disbelief, compare today's story to how things worked back then and it was fine
+3. "question" — genuinely puzzled by modern things, ask the question every dad is thinking
 
 Respond with ONLY valid JSON:
 {{
@@ -237,12 +240,11 @@ Respond with ONLY valid JSON:
 }}
 
 Rules for all 3:
-- Actually funny > technically accurate. Commit to the joke.
-- Apply the tone settings — they shape HOW funny, not whether to be funny
-- Lowercase, fragments, ellipses all fine if they help the comedic timing
-- Emojis only if they're part of the joke (💀 🫠 😭 are comedy gold)
+- Apply tone settings — they shape the energy level, not the voice (always dad)
+- Short, confident sentences. You've seen this before. You're not impressed.
+- The 90s/2000s reference should feel natural, not forced
 - Max 240 chars per caption, no hashtags inside caption
-- Roast the situation/irony, never punch at real individuals"""
+- 1 emoji max per variation, only if dad-you would actually use it"""
 
     message = client.messages.create(
         model="claude-haiku-4-5",
