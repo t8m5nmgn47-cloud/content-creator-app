@@ -9,11 +9,17 @@
       <h1 class="text-2xl font-bold text-white">Posts</h1>
       <p class="text-gray-400 text-sm mt-1">Manage your content queue</p>
     </div>
-    <form action="/posts/generate-now" method="POST">
-      <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-sm rounded-lg text-white transition-colors">
-        ✨ Generate Now
+    <div class="flex gap-2">
+      <button type="button" onclick="openCompose()"
+              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-sm rounded-lg text-white transition-colors">
+        ✍️ Write a Post
       </button>
-    </form>
+      <form action="/posts/generate-now" method="POST">
+        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-sm rounded-lg text-white transition-colors">
+          ✨ Generate Now
+        </button>
+      </form>
+    </div>
   </div>
 
   <!-- Search bar -->
@@ -262,6 +268,204 @@
   });
 
   // Close on Escape key
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeEdit(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeEdit(); closeCompose(); }
+  });
+</script>
+
+<!-- ── Compose Modal ───────────────────────────────────────────── -->
+<div id="compose-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 overflow-y-auto">
+  <div class="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-xl shadow-2xl my-auto">
+
+    <div class="flex items-center justify-between p-6 border-b border-gray-800">
+      <div>
+        <h2 class="text-white font-semibold text-lg">Write a Post</h2>
+        <p class="text-gray-500 text-xs mt-0.5">Type your rough idea — Claude will polish it 4 ways</p>
+      </div>
+      <button type="button" onclick="closeCompose()" class="text-gray-500 hover:text-white transition-colors text-xl leading-none">✕</button>
+    </div>
+
+    <!-- Draft input -->
+    <div id="compose-input" class="p-6 space-y-4">
+      <div>
+        <label class="block text-sm text-gray-400 mb-2">Your idea or rough draft</label>
+        <textarea id="compose-draft" rows="4" placeholder="e.g. Something about how AI is replacing jobs but nobody talks about what new jobs it creates..."
+                  class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+      </div>
+      <button onclick="generateCompose()"
+              class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-colors">
+        ✨ Polish with Claude
+      </button>
+    </div>
+
+    <!-- Loading -->
+    <div id="compose-loading" class="hidden p-10 text-center">
+      <div class="inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+      <p class="text-gray-400 text-sm">Claude is writing your options...</p>
+    </div>
+
+    <!-- Variations -->
+    <div id="compose-variations" class="hidden px-6 pt-4 pb-2 space-y-2">
+      <div class="flex items-center justify-between mb-1">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Pick a version</p>
+        <button onclick="resetCompose()" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">← Rewrite</button>
+      </div>
+      <div id="compose-cards" class="space-y-2"></div>
+    </div>
+
+    <!-- Editor -->
+    <div id="compose-editor" class="hidden px-6 pb-6 pt-4 space-y-4">
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="text-xs text-gray-400">Edit caption</label>
+          <span id="compose-char-count" class="text-xs text-gray-600">0 / 240</span>
+        </div>
+        <textarea id="compose-caption" rows="4"
+                  class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm resize-none focus:outline-none focus:border-indigo-500"
+                  oninput="updateComposeCount()"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1.5">Hashtags <span class="text-gray-600">(comma-separated, no #)</span></label>
+        <input id="compose-hashtags" type="text"
+               class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-indigo-500"
+               placeholder="AI, technology, news" />
+      </div>
+      <div id="compose-error" class="hidden bg-red-950 border border-red-800 rounded-lg p-3 text-red-300 text-sm"></div>
+      <div class="flex gap-3">
+        <button onclick="saveCompose(false)"
+                class="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white font-medium rounded-xl transition-colors">
+          Add to Queue
+        </button>
+        <button onclick="saveCompose(true)"
+                class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-colors">
+          Post Now
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const COMPOSE_TONE_META = {
+    'funny':   { icon: '😄', color: 'border-yellow-700 bg-yellow-950/40', label: 'Funny' },
+    'serious': { icon: '🎯', color: 'border-blue-700 bg-blue-950/40',   label: 'Serious' },
+    'hopeful': { icon: '🌱', color: 'border-green-700 bg-green-950/40', label: 'Hopeful' },
+    'cynical': { icon: '🙃', color: 'border-red-700 bg-red-950/40',     label: 'Cynical' },
+  };
+
+  function openCompose() {
+    resetCompose();
+    document.getElementById('compose-modal').classList.remove('hidden');
+    document.getElementById('compose-draft').focus();
+  }
+
+  function closeCompose() {
+    document.getElementById('compose-modal').classList.add('hidden');
+  }
+
+  function resetCompose() {
+    document.getElementById('compose-input').classList.remove('hidden');
+    document.getElementById('compose-loading').classList.add('hidden');
+    document.getElementById('compose-variations').classList.add('hidden');
+    document.getElementById('compose-editor').classList.add('hidden');
+    document.getElementById('compose-error').classList.add('hidden');
+  }
+
+  async function generateCompose() {
+    const draft = (document.getElementById('compose-draft').value || '').trim();
+    if (!draft) return;
+
+    document.getElementById('compose-input').classList.add('hidden');
+    document.getElementById('compose-loading').classList.remove('hidden');
+
+    try {
+      const res = await fetch('/posts/compose', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({draft}),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      showComposeVariations(data.variations || []);
+    } catch(e) {
+      document.getElementById('compose-loading').classList.add('hidden');
+      document.getElementById('compose-input').classList.remove('hidden');
+      alert('Error: ' + e.message);
+    }
+  }
+
+  function showComposeVariations(variations) {
+    const container = document.getElementById('compose-cards');
+    container.innerHTML = '';
+    variations.forEach(v => {
+      const meta = COMPOSE_TONE_META[v.tone] || { icon: '✏️', color: 'border-gray-700 bg-gray-800/40', label: v.tone };
+      const tags = (v.hashtags || []).map(t => '#' + t).join(' ');
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = `w-full text-left p-3 rounded-xl border ${meta.color} hover:brightness-110 transition-all`;
+      card.innerHTML = `
+        <div class="flex items-center gap-2 mb-1.5">
+          <span class="text-sm">${meta.icon}</span>
+          <span class="text-xs font-semibold text-gray-300 uppercase tracking-wide">${meta.label}</span>
+        </div>
+        <p class="text-gray-200 text-sm leading-snug">${escHtmlCompose(v.caption)}</p>
+        ${tags ? `<p class="text-indigo-400 text-xs mt-1.5">${escHtmlCompose(tags)}</p>` : ''}
+      `;
+      card.addEventListener('click', () => selectComposeVariation(v));
+      container.appendChild(card);
+    });
+    document.getElementById('compose-loading').classList.add('hidden');
+    document.getElementById('compose-variations').classList.remove('hidden');
+  }
+
+  function escHtmlCompose(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function selectComposeVariation(v) {
+    document.getElementById('compose-caption').value = v.caption || '';
+    document.getElementById('compose-hashtags').value = (v.hashtags || []).join(', ');
+    updateComposeCount();
+    document.getElementById('compose-variations').classList.add('hidden');
+    document.getElementById('compose-editor').classList.remove('hidden');
+  }
+
+  function updateComposeCount() {
+    const len = (document.getElementById('compose-caption').value || '').length;
+    const el = document.getElementById('compose-char-count');
+    el.textContent = `${len} / 240`;
+    el.className = 'text-xs ' + (len > 240 ? 'text-red-400' : len > 220 ? 'text-yellow-400' : 'text-gray-600');
+  }
+
+  async function saveCompose(postNow) {
+    const caption = (document.getElementById('compose-caption').value || '').trim();
+    const hashtags = (document.getElementById('compose-hashtags').value || '').trim();
+    if (!caption) return;
+
+    const btns = document.querySelectorAll('#compose-editor button');
+    btns.forEach(b => b.disabled = true);
+
+    try {
+      const res = await fetch('/posts/compose/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({caption, hashtags, post_now: postNow}),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      closeCompose();
+      window.location.href = postNow ? '/posts?filter=posted' : '/posts?filter=approved';
+    } catch(e) {
+      const err = document.getElementById('compose-error');
+      err.textContent = 'Error: ' + e.message;
+      err.classList.remove('hidden');
+      btns.forEach(b => b.disabled = false);
+    }
+  }
+
+  document.getElementById('compose-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeCompose();
+  });
 </script>
 {% endblock %}

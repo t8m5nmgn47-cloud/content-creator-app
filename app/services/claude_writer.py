@@ -167,6 +167,75 @@ def generate_posts_for_queue():
         logger.info(f"Caption generation complete: {generated} posts queued")
         return generated
 
+
+def improve_post_draft(draft: str) -> dict:
+    """
+    Take a user's rough draft or idea and return 4 polished variations
+    in the Explainer voice — funny, serious, hopeful, cynical.
+    """
+    client = _get_client()
+
+    prompt = f"""A user wants to post this on Twitter. Take their rough idea and rewrite it as 4 polished variations using the Explainer voice — short, sharp, one perfect analogy or insight per tweet.
+
+Their draft: {draft}
+
+The 4 flavors:
+1. FUNNY — find the absurdity or irony, make it land with a relatable analogy
+2. SERIOUS — strip it to the uncomfortable truth, confident and direct
+3. HOPEFUL — find the silver lining or bigger pattern, reassuring without being naive
+4. CYNICAL — name the thing everyone's thinking but not saying
+
+Respond with ONLY valid JSON:
+{{
+  "variations": [
+    {{
+      "tone": "funny",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "serious",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "hopeful",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }},
+    {{
+      "tone": "cynical",
+      "caption": "tweet text, max 240 chars",
+      "hashtags": ["tag1", "tag2"]
+    }}
+  ]
+}}
+
+Rules:
+- Stay true to the user's core idea — improve the delivery, don't replace the thought
+- Max 240 chars each
+- No hashtags inside the caption
+- 1 emoji max per variation, only if it sharpens the point
+- Short punchy sentences, fragments fine"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5",
+        max_tokens=900,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    raw = message.content[0].text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+
+    result = json.loads(raw)
+    for v in result.get("variations", []):
+        v["hashtags"] = [h.lstrip("#") for h in v.get("hashtags", [])]
+    return result
+
     except Exception as e:
         logger.error(f"generate_posts_for_queue failed: {e}")
         try:
