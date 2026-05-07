@@ -27,7 +27,7 @@ def generate_twitter_post(title: str, description: str = "") -> dict:
     """
     client = _get_client()
 
-    prompt = f"""You're a person who follows the news closely and loves sharing takes on Twitter. Write a tweet about this story.
+    prompt = f"""You're a funny, sharp person on Twitter who loves finding the absurd or unexpected angle on a news story. Write a tweet that makes people laugh or smirk — not a "gotcha" or a lecture, just genuinely funny.
 
 Headline: {title}
 Details: {description[:300] if description else 'N/A'}
@@ -41,14 +41,15 @@ Respond with ONLY valid JSON:
   "niche": "Technology"
 }}
 
-How to write the tweet:
-- Sound like a real person reacting to the news, not a brand account
-- It's okay to have an opinion, be a little surprised, or ask a question
-- Casual grammar is fine — short punchy sentences, fragments, ellipses if it feels right
-- 1-2 emojis max, only if they actually add something
+How to write it:
+- Find the funny angle — the absurdity, the irony, the unexpected comparison, the thing everyone's thinking but hasn't said yet
+- Punchline structure works great: setup in line 1, payoff in line 2
+- Dry wit, self-aware humor, or mild roasting of the situation (never mean to people)
+- Casual — fragments, lowercase, ellipses all fine if they help the rhythm
+- Avoid snarky "gotcha" takes, moralizing, or obvious observations like "looks like X didn't deliver"
+- 1-2 emojis max, only if they land the joke better
 - Max 240 chars
-- No hashtags inside the caption (keep them separate)
-- Avoid: "breaking", "just announced", "game-changing", "revolutionary", corporate speak
+- No hashtags inside the caption
 
 viral_score: 1-10 based on how likely this gets engagement right now
 niche: Technology, Business, Entertainment, Health, Science, Politics, Sports, Finance, AI, or Other"""
