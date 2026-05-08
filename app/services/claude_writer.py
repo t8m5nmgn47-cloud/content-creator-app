@@ -167,6 +167,17 @@ def generate_posts_for_queue():
         logger.info(f"Caption generation complete: {generated} posts queued")
         return generated
 
+    except Exception as e:
+        logger.error(f"generate_posts_for_queue failed: {e}")
+        try:
+            db.add(AppLog(level="error", job="claude_writer", message=str(e)))
+            db.commit()
+        except Exception:
+            pass
+        return 0
+    finally:
+        db.close()
+
 
 def improve_post_draft(draft: str) -> dict:
     """
@@ -231,21 +242,18 @@ Rules:
             raw = raw[4:]
     raw = raw.strip()
 
-    result = json.loads(raw)
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise ValueError(f"Claude returned non-JSON: {raw[:200]}")
+        result = json.loads(raw[start : end + 1])
+
     for v in result.get("variations", []):
         v["hashtags"] = [h.lstrip("#") for h in v.get("hashtags", [])]
     return result
-
-    except Exception as e:
-        logger.error(f"generate_posts_for_queue failed: {e}")
-        try:
-            db.add(AppLog(level="error", job="claude_writer", message=str(e)))
-            db.commit()
-        except Exception:
-            pass
-        return 0
-    finally:
-        db.close()
 
 
 def generate_post_from_trend(
@@ -338,7 +346,15 @@ Rules for all 3:
             raw = raw[4:]
     raw = raw.strip()
 
-    result = json.loads(raw)
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise ValueError(f"Claude returned non-JSON: {raw[:200]}")
+        result = json.loads(raw[start : end + 1])
+
     for v in result.get("variations", []):
         v["hashtags"] = [h.lstrip("#") for h in v.get("hashtags", [])]
     return result
