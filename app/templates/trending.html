@@ -265,6 +265,9 @@
         <p class="text-gray-400 text-sm">Claude is writing your options...</p>
       </div>
 
+      <!-- Error banner (always at top level so it's visible regardless of which sub-view is hidden) -->
+      <div id="modal-error" class="hidden mx-5 mt-4 bg-red-950 border border-red-800 rounded-lg p-3 text-red-300 text-sm"></div>
+
       <!-- Variation picker (shown after generation) -->
       <div id="modal-variations" class="hidden px-5 pt-4 space-y-2">
         <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Pick a version</p>
@@ -296,8 +299,6 @@
           <p class="text-xs text-gray-500 mb-1.5">Preview</p>
           <p id="modal-preview" class="text-gray-200 text-sm whitespace-pre-wrap"></p>
         </div>
-
-        <div id="modal-error" class="hidden bg-red-950 border border-red-800 rounded-lg p-3 text-red-300 text-sm"></div>
 
         <div class="flex gap-3">
           <button onclick="savePost(false)"
