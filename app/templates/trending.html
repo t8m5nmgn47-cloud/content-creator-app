@@ -270,7 +270,9 @@
 
       <!-- Variation picker (shown after generation) -->
       <div id="modal-variations" class="hidden px-5 pt-4 space-y-2">
-        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Pick a version</p>
+        <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">
+          Pick a version <span class="text-gray-600 normal-case tracking-normal">— click any card to edit before saving. Your edits teach Claude your voice.</span>
+        </p>
         <div id="variation-cards" class="space-y-2"></div>
       </div>
 
@@ -384,6 +386,8 @@
 
   // ── Create Post Modal ────────────────────────────────────────────
   let activeClusterIdx = null;
+  let activeOriginalCaption = '';
+  let activeTone = '';
 
   function openCreateModal(idx) {
     activeClusterIdx = idx;
@@ -451,11 +455,12 @@
       const tags = (v.hashtags || []).map(t => '#' + t).join(' ');
       const card = document.createElement('button');
       card.type = 'button';
-      card.className = `w-full text-left p-3 rounded-xl border ${meta.color} hover:brightness-110 transition-all`;
+      card.className = `group w-full text-left p-3 rounded-xl border ${meta.color} hover:brightness-110 transition-all`;
       card.innerHTML = `
         <div class="flex items-center gap-2 mb-1.5">
           <span class="text-sm">${meta.icon}</span>
-          <span class="text-xs font-semibold text-gray-300 uppercase tracking-wide">${v.tone}</span>
+          <span class="text-xs font-semibold text-gray-300 uppercase tracking-wide">${escHtml(v.tone)}</span>
+          <span class="ml-auto text-xs text-indigo-400 opacity-70 group-hover:opacity-100">✎ Edit & save →</span>
         </div>
         <p class="text-gray-200 text-sm leading-snug">${escHtml(v.caption)}</p>
         ${tags ? `<p class="text-indigo-400 text-xs mt-1.5">${escHtml(tags)}</p>` : ''}
@@ -473,6 +478,8 @@
   }
 
   function selectVariation(v) {
+    activeOriginalCaption = v.caption || '';
+    activeTone = v.tone || '';
     document.getElementById('modal-caption').value = v.caption || '';
     document.getElementById('modal-hashtags').value = (v.hashtags || []).join(', ');
     updateCharCount();
@@ -511,7 +518,14 @@
       const res = await fetch('/trending/save-post', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({caption, hashtags, post_now: postNow, topic}),
+        body: JSON.stringify({
+          caption,
+          hashtags,
+          post_now: postNow,
+          topic,
+          original_caption: activeOriginalCaption,
+          tone: activeTone,
+        }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);

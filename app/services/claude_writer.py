@@ -264,6 +264,7 @@ def generate_post_from_trend(
     tone_playful: int = 3,
     tone_energy: int = 3,
     tone_casual: int = 3,
+    style_examples: list[dict] | None = None,
 ) -> dict:
     """
     Generate 3 Twitter post variations from a trending story cluster.
@@ -281,7 +282,25 @@ def generate_post_from_trend(
     energy_desc = ["very calm and measured", "low-key", "moderate energy", "energetic and enthusiastic", "fired up and intense"][tone_energy - 1]
     casual_desc = ["formal, proper grammar", "mostly formal", "conversational", "casual and relaxed", "very casual — fragments, lowercase fine, ellipses ok"][tone_casual - 1]
 
-    prompt = f"""You are a master of the Explainer tweet — you take complicated trending news and make it click in one or two sentences. You write 3 variations, each using a different explainer flavor.
+    # If the user has edited captions before, show Claude what they changed
+    # so it can mimic their voice. Each example is an (original → edited) pair.
+    style_block = ""
+    if style_examples:
+        lines = [
+            "\nThe user has previously edited your drafts to match their voice.",
+            "Here are recent (your draft → their edit) pairs — match the EDITED style:",
+        ]
+        for ex in style_examples[:5]:
+            orig = (ex.get("original") or "").strip().replace("\n", " ")
+            edit = (ex.get("edited") or "").strip().replace("\n", " ")
+            if not orig or not edit:
+                continue
+            lines.append(f'- Draft: "{orig}"')
+            lines.append(f'  Edited: "{edit}"')
+        lines.append("")
+        style_block = "\n".join(lines)
+
+    prompt = f"""You are a master of the Explainer tweet — you take complicated trending news and make it click in one or two sentences. You write 3 variations, each using a different explainer flavor.{style_block}
 
 Topic: {topic}
 What's happening: {summary}

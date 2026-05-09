@@ -85,3 +85,22 @@ class AppSetting(Base):
     key = Column(String(100), unique=True, nullable=False)
     value = Column(Text, default="")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class StyleExample(Base):
+    """
+    Captured whenever the user edits a Claude-generated caption before
+    saving. The (original, edited) pair is fed back into future prompts
+    as few-shot examples so Claude learns the user's voice over time.
+    """
+    __tablename__ = "style_examples"
+
+    id = Column(Integer, primary_key=True, index=True)
+    topic = Column(String(500), default="")
+    tone = Column(String(50), default="")            # casual / hot take / question
+    original_caption = Column(Text, nullable=False)  # what Claude wrote
+    edited_caption = Column(Text, nullable=False)    # what the user shipped
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<StyleExample id={self.id} tone={self.tone}>"
