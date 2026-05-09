@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import AppSetting, Post, AppLog
+from app.models import AppSetting, Post, AppLog, StyleExample
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -113,7 +113,7 @@ def trending_refresh(request: Request):
 
 
 @router.post("/trending/create-post")
-async def create_post_from_trend(request: Request):
+async def create_post_from_trend(request: Request, db: Session = Depends(get_db)):
     """Generate a tweet for a trend cluster. Returns JSON for the review modal."""
     try:
         body = await request.json()
@@ -131,6 +131,18 @@ async def create_post_from_trend(request: Request):
     if not topic:
         return JSONResponse({"error": "Missing topic"}, status_code=400)
 
+    # Pull the user's most recent style edits to teach Claude their voice.
+    recent_examples = (
+        db.query(StyleExample)
+        .order_by(StyleExample.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    style_examples = [
+        {"original": e.original_caption, "edited": e.edited_caption, "tone": e.tone}
+        for e in recent_examples
+    ]
+
     from app.services.claude_writer import generate_post_from_trend
     try:
         result = generate_post_from_trend(
@@ -138,6 +150,7 @@ async def create_post_from_trend(request: Request):
             tone_playful=tone_playful,
             tone_energy=tone_energy,
             tone_casual=tone_casual,
+            style_examples=style_examples,
         )
         return JSONResponse(result)
     except Exception as e:
@@ -155,9 +168,22 @@ async def save_post_from_trend(request: Request, db: Session = Depends(get_db)):
     caption = (body.get("caption") or "").strip()
     hashtags = (body.get("hashtags") or "").strip()
     post_now = body.get("post_now", False)
+    original_caption = (body.get("original_caption") or "").strip()
+    tone = (body.get("tone") or "").strip()
 
     if not caption:
         return JSONResponse({"error": "Caption is required"}, status_code=400)
+
+    # If the user edited Claude's draft, capture the (original → edited) pair
+    # so future generations can use it as a few-shot style example.
+    if original_caption and original_caption != caption:
+        topic_for_example = (body.get("topic") or "").strip()
+        db.add(StyleExample(
+            topic=topic_for_example[:500],
+            tone=tone[:50],
+            original_caption=original_caption,
+            edited_caption=caption,
+        ))
 
     from datetime import timedelta
     from app.services.claude_writer import _next_schedule_slot
